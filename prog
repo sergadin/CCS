@@ -1,0 +1,4 @@
+#!/bin/bash
+
+#tee log | ./start-ccs.lisp
+./start-ccs.lisp
