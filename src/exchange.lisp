@@ -27,24 +27,25 @@
                   (first (sort direct-attackers #'< :key #'(lambda (x) (value-of (whos-at board x)))))
                   sq)))
     ;; поиск оптимального отсечения
-    (flet ((extr (list &optional (shift 0) &aux res)
-             (do ((l (nthcdr shift list) (cddr l)))
-                 ((null l) (nreverse res))
-               (push (car l) res))))
-      ((lambda (trace) (* (if (eql color :white) +1 -1) (or (first trace) 0))) ; оценка со стороны белых
-       (fixed-point (let ((shift 0)) ; с какого индекса начинаются ходы оппонента
-                      (lambda (trace) ; trace всегда четной длины
-                        (when trace
-                        (let* ((func (if (= shift 0) #'max #'min))
-                               (mine-cuts (extr trace shift))
-                               ;; номер хода, который текущий игрок должен сделать последним
-                               (mine-last-move (or (position (apply func (car trace) mine-cuts)
-                                                             mine-cuts)
-                                                   0)))
-                          (setf shift (logxor shift 1)) ; меняем очередность хода
-                          (subseq trace (* 2 mine-last-move))))))
-                    ;; добавим к trace нейтральный ход (последний ход должен быть чужим)
-                    (if (= 1 (mod (length exchange-trace) 2))
-                        (append (cons (first exchange-trace) exchange-trace))
-                        exchange-trace))))))
-
+    (let ((answer
+           (flet ((extr (list &optional (shift 0) &aux res)
+                    (do ((l (nthcdr shift list) (cddr l)))
+                        ((null l) (nreverse res))
+                      (push (car l) res))))
+             ((lambda (trace) (* (if (eql color :white) +1 -1) (or (first trace) 0))) ; оценка со стороны белых
+              (fixed-point (let ((shift 0)) ; с какого индекса начинаются ходы оппонента
+                             (lambda (trace) ; trace всегда четной длины
+                               (when trace
+                                 (let* ((func (if (= shift 0) #'max #'min))
+                                        (mine-cuts (extr trace shift))
+                                        ;; номер хода, который текущий игрок должен сделать последним
+                                        (mine-last-move (or (position (apply func (car trace) mine-cuts)
+                                                                      mine-cuts)
+                                                            0)))
+                                   (setf shift (logxor shift 1)) ; меняем очередность хода
+                                   (subseq trace (* 2 mine-last-move))))))
+                           ;; добавим к trace нейтральный ход (последний ход должен быть чужим)
+                           (if (= 1 (mod (length exchange-trace) 2))
+                               (append (cons (first exchange-trace) exchange-trace))
+                               exchange-trace))))))
+      (values answer t-board))))

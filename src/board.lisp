@@ -171,7 +171,7 @@
       (setf tok (pop tokens)) ; чей ход
       (setf (turn board) (if (char= (elt tok 0) #\w) :white :black))
       (setf tok (pop tokens)) ; рокировки
-      (setf (castlings board) 
+      (setf (castlings board)
 	    (mapcar #'(lambda (c) (cdr (assoc c '((#\K . #@g1@) (#\Q . #@c1@)
 						  (#\k . #@g8@) (#\q . #@c8@)))))
 		    (coerce tok 'list)))
@@ -194,7 +194,7 @@
 (defun move-piece (board from to)
   (setf (aref (pieces board) to) (aref (pieces board) from))
   (setf (aref (pieces board) from) nil))
-  
+
 
 (defgeneric make-move (board move &key)
   (:documentation "Делает ход на доске.")

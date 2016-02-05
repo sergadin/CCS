@@ -89,7 +89,7 @@
 
 ;;; Поиск возможных траекторий движения фигуры на пустой доске
 
-(defun find-paths (piece start end horizon)
+(defun find-paths (piece start end horizon &key (color :white))
   "Return: list of paths; each path is a list of squares."
   (let ((wave `((,start)))
 	(result nil))
@@ -105,7 +105,7 @@
 		       #'(lambda (next) (append path (list next)))
 		       (remove-if ; no loops allowed
 			#'(lambda (next) (member next path))
-			(moves piece (car (last path))))))
+			(moves piece (car (last path)) :color color))))
 		  wave)))
 	 (setq wave (delete-duplicates wave :test #'equal))
 	 (setq result (append result wave)))
@@ -118,10 +118,10 @@
 
 ;;; Проверка допустимости хода
 
-(defun squares-on-line (from to)
-  "Список полей между FROM и TO (вертикаль, горизонталь или диагональ), включая FROM и TO."
-  (let ((from (min from to))
-	(to (max from to))
+(defun squares-on-line (start end)
+  "Список полей между START и END (вертикаль, горизонталь или диагональ), включая FROM и TO."
+  (let ((from (min start end))
+	(to (max start end))
 	offset path)
     (setf offset
 	  (cond
@@ -134,7 +134,10 @@
     (do ((s from (+ s offset)))
 	((> s to))
      (push s path))
-    (nreverse path)))
+    (if (< start end)
+        (nreverse path)
+        path)))
+
 
 
 (defun free-line-p (board from to)
@@ -168,7 +171,7 @@
      (eql (kind piece) :pawn)
      (member to (moves piece from :color color))
      (not (= (mod from 8) (mod to 8)))))) ; пешка меняет вертикаль
-   
+
 
 (defun attackers (board to &key (from nil) (color nil) (attack-only t) (free-line t))
   "Возвращает список полей на которых стоят фигуры цвета COLOR, атакующие
@@ -241,4 +244,3 @@
 	;; все условия выполнены
 	(return-from valid-move-p t))
     nil))))
-
