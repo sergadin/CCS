@@ -1,7 +1,3 @@
-branches:
-  only:
-    - master
-
 language: common-lisp
 sudo: required
 
@@ -9,7 +5,7 @@ env:
   matrix:
     #- LISP=abcl
     #- LISP=allegro
-    - LISP=sbcl
+    #- LISP=sbcl
     #- LISP=sbcl32
     - LISP=ccl
     #- LISP=ccl32
@@ -20,12 +16,12 @@ env:
 
 install:
   # Install cl-travis
-  - curl -L https://github.com/luismbo/cl-travis/raw/master/install.sh | sh
+  # - curl -L https://github.com/luismbo/cl-travis/raw/master/install.sh | sh
+  - curl https://raw.githubusercontent.com/luismbo/cl-travis/master/install.sh | bash
+
   # Install dependencies
   - git clone --depth=1 git://github.com/trivial-features/trivial-features.git ~/lisp/trivial-features
   - git clone https://gitlab.common-lisp.net/alexandria/alexandria.git ~/lisp/alexandria
 
 script:
-  - cl -l lift
-       -e ';;(ql:quickload :cffi-tests)
-           (lift:run-tests :suite 'root)'
+  - cl -e '(progn (push #p"~/sergadin/CCS/" asdf:*central-registry*) (ql:quickload "ccs-test") (lift:describe-test-result (lift:run-tests :suite :root) t))'
