@@ -123,9 +123,9 @@
                         2
                         1)))))
 
-(defun field-passible-p (field chain)
-  (with-accessors ((pos chain-position))
-      chain
+;;(defun field-passible-p (field chain)
+;;  (with-accessors ((pos chain-position))
+;;      chain
 
 (defun find-escape-chains (field position parent)
   (let* ((piece-at-field (whos-at position (field-square field)))
@@ -140,11 +140,11 @@
     (mapcar #'(lambda (path) (make-chain path :position position :parent parent)) paths))) ; sort chains??
 
 
-(defun find-support-chains (field position parent &key time-limit)
-  (let* ((
+;;(defun find-support-chains (field position parent &key time-limit)
+;;  (let* ((
 
 
-(defun make-chain (path &key position parent)
+(defun make-chain (path position &key parent)
   (let* ((sq (first path))
          (piece (whos-at position sq))
          (chain-color (color piece))
@@ -168,8 +168,7 @@
        ;                 (exchange-value board (field-square field) :white)))
        (when (and piece-at-field (eq (field-type field) :internal-field))
          (when (eq (color piece-at-field) chain-color)
-           (print (find-escape-chains field board the-chain))))
-       (when ()
+           (print (find-escape-chains field board the-chain)))))
     the-chain))
 
 
@@ -184,5 +183,5 @@
       (do-pieces (*board* (p sq) :color color)
         (when (= sq initial-sq)
           (let* ((traject (first (last (find-paths (kind p) sq target-sq 4 :color color))))
-                 (chain (make-chain traject :position position)))
+                 (chain (make-chain traject position)))
             (print (mapcar #'square-to-string traject))))))))
