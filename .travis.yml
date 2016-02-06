@@ -1,27 +1,30 @@
 language: common-lisp
-sudo: required
+sudo: false
 
 env:
+  global:
+    - PATH=~/.roswell/bin:$PATH
+    - ROSWELL_INSTALL_DIR=$HOME/.roswell
   matrix:
-    #- LISP=abcl
-    #- LISP=allegro
-    #- LISP=sbcl
-    #- LISP=sbcl32
-    - LISP=ccl
-    #- LISP=ccl32
-    #- LISP=clisp
-    #- LISP=clisp32
-    #- LISP=cmucl
-    #- LISP=ecl
+    - LISP=sbcl-bin
+    - LISP=ccl-bin
+
 
 install:
-  # Install cl-travis
-  # - curl -L https://github.com/luismbo/cl-travis/raw/master/install.sh | sh
-  - curl https://raw.githubusercontent.com/luismbo/cl-travis/master/install.sh | bash
+  # Install roswell
+
+  - curl -L https://raw.githubusercontent.com/snmsts/roswell/release/scripts/install-for-ci.sh | sh
 
   # Install dependencies
-  - git clone --depth=1 git://github.com/trivial-features/trivial-features.git ~/lisp/trivial-features
-  - git clone https://gitlab.common-lisp.net/alexandria/alexandria.git ~/lisp/alexandria
+  #- git clone https://gitlab.common-lisp.net/alexandria/alexandria.git ~/lisp/alexandria
+
+cache:
+  directories:
+    - $HOME/.roswell
 
 script:
-  - cl -e '(progn (push #p"~/sergadin/CCS/" asdf:*central-registry*) (ql:quickload "ccs-test") (lift:describe-test-result (lift:run-tests :suite :root) t))'
+  - ros -e '(progn
+              (push (pathname "~/sergadin/CCS/") asdf:*central-registry*)
+              (ql:quickload "ccs")
+              (ql:quickload "ccs-test")
+              (lift:describe-test-result (lift:run-tests :suite :root) t))'

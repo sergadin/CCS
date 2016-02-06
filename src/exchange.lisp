@@ -49,3 +49,9 @@
                                (append (cons (first exchange-trace) exchange-trace))
                                exchange-trace))))))
       (values answer t-board))))
+
+(defun exchange-positive-p (value color &key strictly)
+  (let ((cmp (if strictly #'< #'<=)))
+    (if (eq color :white)
+        (funcall cmp 0 value)
+        (funcall cmp value 0))))

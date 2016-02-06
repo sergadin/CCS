@@ -15,7 +15,13 @@
 	       :test equal)
   (ensure-same (sort (ccs::moves :pawn (ccs::string-to-square :e2) :color :black) #'<)
 	       (sort (mapcar #'ccs::string-to-square '(:e1 :d1 :f1)) #'<)
-	       :test equal))
+	       :test equal)
+  (ensure-same (sort (ccs::moves :pawn (ccs::string-to-square :h4) :color :white) #'<)
+               (sort (mapcar #'ccs::string-to-square '(:h5 :g5)) #'<)
+               :report "Illegal move of white pawn on H file.")
+  (ensure-same (sort (ccs::moves :pawn (ccs::string-to-square :h5) :color :black) #'<)
+               (sort (mapcar #'ccs::string-to-square '(:h4 :g4)) #'<)
+               :report "Illegal move of black pawn on H file."))
 
 (addtest (moves-on-empty-board)
   knight-moves ; test name

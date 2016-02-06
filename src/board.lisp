@@ -57,19 +57,20 @@
 
 (defgeneric print-board (board &key stream)
   (:documentation "Выводит текущее положение в стандартной нотации.")
-  (:method ((board board) &key (stream t) )
-    (mapcar
-     #'(lambda (color)
-	 (loop
-	    :for sq :from 1 :to 64 :do
-	    (when (= sq 1) (format stream "~A " (string color)))
-	    (let ((pc (aref (slot-value board 'pieces) sq)))
-	      (when (and pc (eql (color pc) color))
-		(format stream "~C~A "
-			(piece-to-name (kind pc))
-			(square-to-string sq))))))
-     '(:white :black))
-    t))
+  (:method ((board board) &key (stream t))
+    (format stream "~A"
+            (with-output-to-string (s)
+              (mapcar
+               #'(lambda (color)
+                   (loop
+                      :for sq :from 1 :to 64 :do
+                      (when (= sq 1) (format s "~A " (string color)))
+                      (let ((pc (aref (slot-value board 'pieces) sq)))
+                        (when (and pc (eql (color pc) color))
+                          (format s "~C~A "
+                                  (piece-to-name (kind pc))
+                                  (square-to-string sq))))))
+               '(:white :black))))))
 
 
 (defgeneric print-board-fen (board &key stream)
@@ -249,3 +250,13 @@
 	     (,sq-bind x-sq))
 	 (declare (ignorable ,piece-bind) (ignorable ,sq-bind)) ;--- FIXME: generate nesessery bindings only
 	 ,@body)))))
+
+(defmacro with-move ((board from to) &body body)
+  "Evaluates BODY with move FROM-TO made on the BOARD. Undo changes made by the move after BODY evaluation."
+  (let ((piece-at-to (gensym)))
+  `(let ((,piece-at-to (whos-at ,board ,to)))
+     (move-piece ,board ,from ,to)
+     (prog1
+         (progn ,@body)
+       (move-piece ,board ,to ,from)
+       (setup-piece ,board ,to ,piece-at-to)))))

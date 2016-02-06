@@ -14,6 +14,9 @@
 (defgeneric moves (piece start &key color)
   (:documentation "Возвращает все возможные ходы (список полей) фигуры PIECE цвета COLOR с поля START на пустой доске."))
 
+(defgeneric pre-moves (piece to &key color)
+  (:documentation "Find all squares where a PIECE should be placed in order to reach TO field in one move."))
+
 (defmethod moves ((piece (eql :rook)) start &key (color :white))
   "Rachable squares by rook ладья"
   (declare (ignorable color))
@@ -76,8 +79,8 @@
       (when (= (ceiling start 8) 2) (push (+ start 16) res)))
     (when (and (eql color :black) (> (ceiling start 8) 1))
       (push (- start 8) res)
-      (when (not (= (mod start 8) 1)) (push (- start 7) res))
-      (when (not (= (mod start 8) 0)) (push (- start 9) res))
+      (when (not (= (mod start 8) 1)) (push (- start 9) res))
+      (when (not (= (mod start 8) 0)) (push (- start 7) res))
       (when (= (ceiling start 8) 7) (push (- start 16) res)))
     (delete-if-not #'(lambda (sq) (and (<= 1 sq) (<= sq 64))) res)))
 
@@ -85,6 +88,16 @@
 (defmethod moves ((piece piece) start &key (color :white))
   (declare (ignore color))
   (moves (kind piece) start :color (color piece)))
+
+
+(defmethod pre-moves ((piece piece) to &key (color :nil))
+  (case (kind piece)
+    (:pawn
+       (loop :for sq :from 1 :to 64
+          :when (member to (moves piece sq :color (or color (color piece))))
+          :collect sq))
+    (t (moves (kind piece) to :color (or color (color piece))))))
+
 
 
 ;;; Поиск возможных траекторий движения фигуры на пустой доске
@@ -114,6 +127,11 @@
      #'(lambda (p) (eql (car (last p)) end))
      result)))
 
+(defun path-to-moves (path)
+  "Split PATH into list of consecutive moves, e.g. CONSes of
+squares. (1 2 3) => ((1 . 2) (2 . 3))"
+  (loop :for tail :on path
+     :when (cdr tail) :collect (cons (first tail) (second tail))))
 
 
 ;;; Проверка допустимости хода
