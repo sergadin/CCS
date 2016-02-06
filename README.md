@@ -1,5 +1,5 @@
 ### Status
-[![Build Status](https://travis-ci.org/sergadin/CCS.png)](https://travis-ci.org/sergadin/CCS)
+[![Build Status](https://travis-ci.org/sergadin/CCS.png?branch=master)](https://travis-ci.org/sergadin/CCS)
 
 Как загрузить:
 1.

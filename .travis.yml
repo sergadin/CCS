@@ -18,12 +18,14 @@ install:
   # Install dependencies
   #- git clone https://gitlab.common-lisp.net/alexandria/alexandria.git ~/lisp/alexandria
 
+  - ros -e '(ql:quickload "lift")'
+
 cache:
   directories:
     - $HOME/.roswell
 
 script:
-  - ros -e '(progn
+  - ros -s lift -e '(progn
               (push (pathname "~/sergadin/CCS/") asdf:*central-registry*)
               (ql:quickload "ccs")
               (ql:quickload "ccs-test")
