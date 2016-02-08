@@ -55,3 +55,10 @@
     (if (eq color :white)
         (funcall cmp 0 value)
         (funcall cmp value 0))))
+
+(defun better-exchange-p (value-new value-old color &key (strictly t))
+  "Verify that VALUE-NEW is better for COLOR than VALUE-OLD."
+  (let ((cmp (if strictly #'< #'<=)))
+    (if (eq color :white)
+        (funcall cmp value-old value-new)
+        (funcall cmp value-new value-old))))

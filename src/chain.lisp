@@ -175,6 +175,7 @@ presumably yields more accurate estimations."
 
 
 (defun find-escape-chains (field position parent)
+  "Field clearance."
   (log-message :trace "Searching for escape chain from ~A. Level=~D"
                (square-to-string (field-square field))
                (1+ (chain-level parent)))
@@ -189,7 +190,7 @@ presumably yields more accurate estimations."
                              (moves piece-at-field (field-square field) :color color)))))
     ;;--- TODO: find best candidate
     (mapcar #'(lambda (path)
-                (format t "~A ==> ~A~%" (square-to-string (first path)) (square-to-string (second path)))
+                ; (format t "~A ==> ~A~%" (square-to-string (first path)) (square-to-string (second path)))
                 (make-chain path position :parent parent))
             paths)))
 
@@ -197,15 +198,23 @@ presumably yields more accurate estimations."
 (defun find-support-chains (field position parent &key time-limit (color (chain-color parent)))
   "Find subchains making FIELD passable by the PARENT chain piece."
   (log-message :trace "Searching for support chains on ~A" (square-to-string (field-square field)))
-  ;; Attack the field by other pieces
-  (let ((support-chains nil))
+  (let ((support-chains nil)
+        (old-exchange-value (exchange-value position (field-square field) (opposite-color color))))
+    ;; Attack the field by other pieces
     (do-pieces (position (piece square) :color color)
       (let ((targets (pre-moves piece (field-square field)))
             (horizon (or time-limit (default-horizon piece)))
             (candidate-paths))
+        ;; Find all empty squares where PIECE can participate in the exchange on FIELD.
         (dolist (target-square targets)
-          (dolist (path (find-paths (kind piece) square target-square horizon :color color))
-            (push path candidate-paths)))
+          (when (and (empty-square-p position target-square)
+                     (with-move (position square target-square)
+                       (better-exchange-p
+                        (exchange-value position (field-square field) (opposite-color color))
+                        old-exchange-value
+                        color)))
+            (dolist (path (find-paths (kind piece) square target-square horizon :color color))
+              (push path candidate-paths))))
         (when candidate-paths
           (let ((ordered-candidates
                  (sort candidate-paths #'<
@@ -215,6 +224,7 @@ presumably yields more accurate estimations."
                               position
                               :parent parent)
                   support-chains)))))
+    ;;--- TODO: Make opponents moves impossible due to absolute or relative pin.
     support-chains))
 
 

@@ -45,6 +45,9 @@
       (if w (values w (color w)) nil ))))
 
 
+(defun empty-square-p (board square)
+  (null (whos-at board square)))
+
 (defgeneric load-from-fen-string (board string)
   (:documentation "Инициализирует позицию из строки в нотации FEN."))
 
@@ -252,7 +255,8 @@
 	 ,@body)))))
 
 (defmacro with-move ((board from to) &body body)
-  "Evaluates BODY with move FROM-TO made on the BOARD. Undo changes made by the move after BODY evaluation."
+  "Evaluates BODY in an implicit PROGN with move FROM-TO made on the
+BOARD. Undo changes made by the move after BODY evaluation."
   (let ((piece-at-to (gensym)))
   `(let ((,piece-at-to (whos-at ,board ,to)))
      (move-piece ,board ,from ,to)
