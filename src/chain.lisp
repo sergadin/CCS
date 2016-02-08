@@ -38,7 +38,7 @@
 
 
 
-(deftype field-type () '(member :stop-field :internal-field))
+(deftype field-type () '(member :stop-field :internal-field :extra-stop-feild))
 
 (defclass <trajectory-field> ()
   ((pos :type square
@@ -61,8 +61,9 @@
   (:documentation "Поля траектории"))
 
 
-(defun stop-field-p (field)
-  (eq (slot-value field 'type) :stop-field))
+(defun stop-field-p (field &key (strict t))
+  (member (slot-value field 'type)
+          (if strict '(:stop-field) '(:stop-field :extra-stop-field))))
 
 (defun make-trajectory-field (sq type)
   (make-instance '<trajectory-field> :pos sq :type type))
@@ -139,7 +140,7 @@ last field on TRAJECTORY."
      :for field = (aref trajectory i)
      :for p = (whos-at position (field-square field))
      :summing
-     (if (eq (field-type field) :internal-field)
+     (if (eq (field-type field) :internal-field) ;; WTF?
          (if p 1 0)
          ;;STOP-FIELD
          (if (and p (eq (color p) (color piece)))
@@ -147,12 +148,10 @@ last field on TRAJECTORY."
              1))))
 
 
-(defun time-limit (chain index)
+(defun time-limit (chain &optional index)
   (with-accessors ((traject chain-trajectory)
                    (position chain-position))
       chain
-    (when (<= (array-dimension traject 0) index)
-      (error "Incorrect index from chain ~d" index))
     (trajectory-time-limit traject position index)))
 
 
@@ -194,6 +193,20 @@ presumably yields more accurate estimations."
                 (make-chain path position :parent parent))
             paths)))
 
+(defun knapsack (objects min-gain-limit max-time-limit
+                 &key (gain-key #'identity)
+                   (time-key #'(lambda (x) (declare (ignore x)) 1)))
+  "Жадный алгоритм решения задачи о рюкзаке"
+  (loop :for obj :in (sort objects #'> :key gain-key)
+     :when (or (null max-time-limit)
+               (<= (+ (funcall time-key obj) current-time-spent) max-time-limit))
+     :collect obj
+     :summing (funcall time-key obj) :into current-time-spent
+     :summing (funcall gain-key obj) :into achieved-gain
+     :while (< achieved-gain min-gain-limit)))
+     ;:for sum-gain = (gain-key obj)
+
+
 
 (defun find-support-chains (field position parent &key time-limit (color (chain-color parent)))
   "Find subchains making FIELD passable by the PARENT chain piece."
@@ -201,31 +214,43 @@ presumably yields more accurate estimations."
   (let ((support-chains nil)
         (old-exchange-value (exchange-value position (field-square field) (opposite-color color))))
     ;; Attack the field by other pieces
-    (do-pieces (position (piece square) :color color)
-      (let ((targets (pre-moves piece (field-square field)))
+    (do-pieces (position (piece square) :color color) ;; ?.. what about pieces from parent's chain?
+      (let ((targets (pre-moves piece (field-square field) :attack-only t))
             (horizon (or time-limit (default-horizon piece)))
-            (candidate-paths))
+            (candidate-paths)
+            (new-exchange-value))
         ;; Find all empty squares where PIECE can participate in the exchange on FIELD.
         (dolist (target-square targets)
+          (setf new-exchange-value
+                (with-move (position square target-square)
+                  (exchange-value position (field-square field) (opposite-color color))))
           (when (and (empty-square-p position target-square)
-                     (with-move (position square target-square)
-                       (better-exchange-p
-                        (exchange-value position (field-square field) (opposite-color color))
-                        old-exchange-value
-                        color)))
-            (dolist (path (find-paths (kind piece) square target-square horizon :color color))
-              (push path candidate-paths))))
+                     (better-exchange-p
+                      new-exchange-value
+                      old-exchange-value
+                      color))
+            (loop :for path = (find-paths (kind piece) square target-square horizon :color color)
+               :do (push (cons (- old-exchange-value new-exchange-value) path)  candidate-paths))))
         (when candidate-paths
           (let ((ordered-candidates
                  (sort candidate-paths #'<
-                       :key #'(lambda (path) (estimate-chain-complexity path position)))))
+                       :key #'(lambda (g-path) (estimate-chain-complexity (cdr g-path) position)))))
             (format t "Best chain found (~{~A ~})~%" (mapcar #'square-to-string (first ordered-candidates)))
-            (push (make-chain (first ordered-candidates)
-                              position
-                              :parent parent)
-                  support-chains)))))
+            ;;search best chain
+            (loop :for (gain . candidate-path) :in ordered-candidates
+               :for chain = (make-chain candidate-path
+                                        position
+                                        :parent parent)
+               :when (not (and time-limit (> (time-limit chain) time-limit)))
+               :do (push (list (time-limit chain) gain chain) support-chains)
+               (return))))))
     ;;--- TODO: Make opponents moves impossible due to absolute or relative pin.
-    support-chains))
+
+    ;best-support-chain ?..
+    (knapsack support-chains old-exchange-value time-limit
+              :gain-key #'second
+              :time-key #'first)))
+      ;;(mapcar #'(lambda (t-g-chain) (elt t-g-chain 2)) support-chains)))
 
 
 (defun make-chain (path position &key parent (max-level +default-chain-depath+))
@@ -266,13 +291,14 @@ presumably yields more accurate estimations."
            ((and (not (eq (color piece-at-field) chain-color))
                  (eq (field-type field) :internal-field))
             ;; opponent's piece in the middle: escape, protect or do nothing
-            (exchange-value position square chain-color)
+            (setf (field-type field) :extra-stop-field)
+            ;;(exchange-value position square chain-color)
             nil)))
 
-       (when (stop-field-p field)
-         (let ((ev 0))
+       (when (stop-field-p field :strict nil)
+         (let ((ev (piece-value piece-at-field))) ; exchange-value
            (with-move (position chain-piece-square square)
-             (setf ev (exchange-value position square (opposite-color chain-color))))
+             (incf ev (exchange-value position square (opposite-color chain-color))))
            (when (not (exchange-positive-p ev chain-color))
              ;; Can not simply move to that square due to negative exchange value.
              (log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
@@ -285,7 +311,7 @@ presumably yields more accurate estimations."
   (start-logging)
   (let ((*board* (create-board))
         (initial-sq #@e6@) ; #@h5@)
-        (target-sq #@h1@) ; #@h1@)
+        (target-sq #@e2@) ; #@h1@)
         (color :black))
     (load-from-fen-string *board* "8/8/4b1p1/2Bp3p/5P1P/1pK1Pk2/8/8 b - - 0 1")
     (log-message :debug "~A" (print-board *board* :stream nil))

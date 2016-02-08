@@ -110,6 +110,13 @@
     ;(* val (if (eql (color the-piece) :white) +1 -1))))
     val))
 
+(defun piece-value (piece)
+  "Оценка стоимости фигуры с точки зрения белых"
+  (if piece
+      (* (value-of piece)
+         (if (eq (color piece) :white) +1 -1))
+      0))
+
 
 ;;
 ;; Функции для расстановки фигур

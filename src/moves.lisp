@@ -14,7 +14,7 @@
 (defgeneric moves (piece start &key color)
   (:documentation "Возвращает все возможные ходы (список полей) фигуры PIECE цвета COLOR с поля START на пустой доске."))
 
-(defgeneric pre-moves (piece to &key color)
+(defgeneric pre-moves (piece to &key color attack-only)
   (:documentation "Find all squares where a PIECE should be placed in order to reach TO field in one move."))
 
 (defmethod moves ((piece (eql :rook)) start &key (color :white))
@@ -90,11 +90,13 @@
   (moves (kind piece) start :color (color piece)))
 
 
-(defmethod pre-moves ((piece piece) to &key (color :nil))
+(defmethod pre-moves ((piece piece) to &key (color nil) (attack-only nil))
   (case (kind piece)
     (:pawn
        (loop :for sq :from 1 :to 64
-          :when (member to (moves piece sq :color (or color (color piece))))
+          :when (and (member to (moves piece sq :color (or color (color piece))))
+                     (or (null attack-only)
+                         (/= (mod to 8) (mod sq 8))))
           :collect sq))
     (t (moves (kind piece) to :color (or color (color piece))))))
 
