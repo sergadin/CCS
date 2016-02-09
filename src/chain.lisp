@@ -31,6 +31,10 @@
                             :square sq)))
     pos))
 
+(defun copy-position (position)
+  (shallow-copy-object position))
+
+
 #+(or)(defun piece-at (board sq)
   "Возвращает объект класса `<piece>'"
   (multiple-value-bind (p c) (whos-at board sq)
@@ -140,12 +144,26 @@ last field on TRAJECTORY."
      :for field = (aref trajectory i)
      :for p = (whos-at position (field-square field))
      :summing
-     (if (eq (field-type field) :internal-field) ;; WTF?
-         (if p 1 0)
-         ;;STOP-FIELD
-         (if (and p (eq (color p) (color piece)))
-             2
-             1))))
+     (case (kind piece)
+       (:pawn
+        (if (pawn-take-move-p (field-square (aref trajectory (- i 1)))
+                              (field-square field))
+            (cond
+              ((null p) 2)
+              ((eq (color p) (color piece)) 3) ;; or 2 ???
+              (t 1))
+            (cond
+              ((null p) 1)
+              ((eq (color p) (color piece)) 2)
+              (t 3))))
+       (t
+        (if (eq (field-type field) :internal-field)
+            (if p 1 0)
+            ;;STOP-FIELD
+            (if (and p (eq (color p) (color piece)))
+                2
+                1))))))
+
 
 
 (defun time-limit (chain &optional index)
@@ -254,8 +272,9 @@ presumably yields more accurate estimations."
 
 
 (defun make-chain (path position &key parent (max-level +default-chain-depath+))
-  (let* ((sq (first path))
-         (piece (whos-at position sq))
+  (let* ((t-position (copy-position position))
+         (sq (first path))
+         (piece (whos-at t-position sq))
          (chain-color (color piece))
          (trajectory (make-trajectory path))
          (level (if parent (+ 1 (chain-level parent)) 0))
@@ -267,13 +286,13 @@ presumably yields more accurate estimations."
                                    :position position)))
     (when (null parent)
       (log-message :trace "Constructing chain for the path ~{~A ~}" (mapcar #'square-to-string path)))
-    (loop :with board = (copy-board position)
+    (loop :with board = (copy-board t-position)
        :for index :from 1 :below (array-dimension trajectory 0)
        :for field = (aref trajectory index)
        :and chain-piece-square = (field-square (aref trajectory 0)) :then (field-square field)
        :for square = (field-square field)
        :for time-limit = (time-limit the-chain index)
-       :for piece-at-field = (whos-at position (field-square field))
+       :for piece-at-field = (whos-at t-position (field-square field))
        :while (< level max-level) ; do not create extremely nested subchains
        :do
        ;(move-piece board sq (field-square field))
@@ -287,23 +306,32 @@ presumably yields more accurate estimations."
             (let* ((escapes (find-escape-chains field board the-chain))
                    (best-escape (first escapes)))
               ;; Make most reasonable escape move
-              (move-piece position (field-square field) (first (subchain0-path best-escape)))))
+              (move-piece t-position (field-square field)
+                          (first (subchain0-path best-escape)))
+              ;;---------
+              (setf piece-at-field nil)))
+              ;;---------
            ((and (not (eq (color piece-at-field) chain-color))
                  (eq (field-type field) :internal-field))
             ;; opponent's piece in the middle: escape, protect or do nothing
             (setf (field-type field) :extra-stop-field)
-            ;;(exchange-value position square chain-color)
+            ;;(exchange-value t-position square chain-color)
             nil)))
 
+       ;; now piece-at-field nil or belongs to opponent
        (when (stop-field-p field :strict nil)
-         (let ((ev (piece-value piece-at-field))) ; exchange-value
-           (with-move (position chain-piece-square square)
-             (incf ev (exchange-value position square (opposite-color chain-color))))
+         (let ((ev (piece-value piece-at-field :color chain-color))) ; exchange-value
+           ;(log-message :debug "~A" (print-board t-position :stream nil))
+           (with-move (t-position #|chain-piece-square|# sq square)
+             ;(log-message :debug "bf ~A" (print-board t-position :stream nil))
+             (incf ev (exchange-value t-position square (opposite-color chain-color))))
+           (log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
            (when (not (exchange-positive-p ev chain-color))
              ;; Can not simply move to that square due to negative exchange value.
-             (log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
-             (find-support-chains field position the-chain))))
-       )
+             ;;(log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
+             (find-support-chains field t-position the-chain)))
+       ;(move-piece t-position chain-piece-square square)
+         ))
     the-chain))
 
 

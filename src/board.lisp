@@ -110,11 +110,11 @@
     ;(* val (if (eql (color the-piece) :white) +1 -1))))
     val))
 
-(defun piece-value (piece)
-  "Оценка стоимости фигуры с точки зрения белых"
+(defun piece-value (piece &key (color :white))
+  "Оценка стоимости фигуры с точки зрения COLOR"
   (if piece
       (* (value-of piece)
-         (if (eq (color piece) :white) +1 -1))
+         (if (eq (color piece) color) +1 -1))
       0))
 
 

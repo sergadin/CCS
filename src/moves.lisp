@@ -100,7 +100,10 @@
           :collect sq))
     (t (moves (kind piece) to :color (or color (color piece))))))
 
-
+(defun pawn-take-move-p (from to)
+  (if (= (mod to 8) (mod from 8))
+      nil
+      t))
 
 ;;; Поиск возможных траекторий движения фигуры на пустой доске
 

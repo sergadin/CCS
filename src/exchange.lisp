@@ -17,9 +17,10 @@
     (do* ((who color (opposite-color who))
           (direct-attackers (attackers t-board sq :color who)
                             (attackers t-board sq :color who))
-          (p (whos-at t-board sq) (whos-at t-board sq))
+          (p (whos-at t-board sq)
+             (whos-at t-board sq))
           (sign +1 (* sign -1)))
-        ((or (null direct-attackers) (null p)))
+         ((or (null direct-attackers) (null p)))
       (when (eql (color p) (opposite-color who))
         (push (incf val (* sign (value-of p))) exchange-trace))
       (make-move t-board
