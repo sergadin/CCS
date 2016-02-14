@@ -146,8 +146,10 @@ last field on TRAJECTORY."
      :summing
      (case (kind piece)
        (:pawn
-        (if (pawn-take-move-p (field-square (aref trajectory (- i 1)))
-                              (field-square field))
+        (if (pawn-take-move-p :pawn
+                              (color piece)
+                              (create-move (field-square (aref trajectory (- i 1)))
+                                           (field-square field)))
             (cond
               ((null p) 2)
               ((eq (color p) (color piece)) 3) ;; or 2 ???
