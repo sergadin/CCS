@@ -35,12 +35,13 @@
                (:file "exchange")
                (:module "chain"
                         :pathname "chain"
-                        :components ((:file "chain")))
+                        :components ((:file "chain")
+                                     (:file "db")))
                (:file "candidates")
                (:file "play")
                (:file "xboard")
                (:file "main"))
-  :depends-on ("cl-utilities" "cl-ppcre" "cl-log" "cl-containers" "treedb"))
+  :depends-on ("cl-utilities" "cl-ppcre" "cl-log" "cl-containers" "dynamic-mixins"))
 
 
 (asdf:defsystem :ccs-test

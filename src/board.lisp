@@ -1,7 +1,5 @@
 ;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; Base: 10 -*-
 ;;;;
-;;;; $Id: board.lisp 18 2013-07-06 11:05:00Z serg $
-;;;;
 
 (in-package :ccs)
 

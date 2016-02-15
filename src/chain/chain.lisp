@@ -3,6 +3,9 @@
 (defvar +default-chain-depath+ 3
   "Default value for maximum subchain level.")
 
+(defparameter +infinite-piece-value+ 1000 "Used as an approximation of infinity.")
+
+
 (defun default-horizon (piece)
   (declare (ignore piece))
   3)
@@ -10,7 +13,28 @@
 (defclass <piece> (piece)
   ((position :initarg :position)
    (square :type square
-           :initarg :square)))
+           :initarg :square)
+   (chains-db :initform (make-chains-database)
+           :documentation
+           "Tree-like database of all subchains this piece
+           participates in. Indexed by subchain's path squares.")))
+
+(defgeneric add-chain (piece chain)
+  (:documentation "Register that PIECE paricipates in the CHAIN."))
+
+(defmethod add-chain ((piece <piece>) (chain-or-subchain <chain>))
+  (cdb-add (slot-value piece 'chains-db)
+           (subchain0-path chain-or-subchain)
+           (root-chain chain-or-subchain)))
+
+
+(defclass <unlostable-piece> (<piece>)
+  () ; no slots
+  (:documentation "Mixin class used for local modification of value-of function."))
+
+(defmethod value-of ((piece <unlostable-piece>) &key)
+  (declare (ignore piece))
+  +infinite-piece-value+)
 
 
 (defclass <position> (board)
@@ -110,6 +134,7 @@
    (parent :type (or <chain> null)
            :initform nil
            :initarg :parent
+           :accessor chain-parent
            :documentation "Ссылка на цепочку меньшего порядка, породившую данную цепочку. В случае подцепи-0 - nil" )
    (trajectory :type (vector <trajectory-field> *)
                :initform (error "Undefined trajectory")
@@ -146,7 +171,7 @@ last field on TRAJECTORY."
      :summing
      (case (kind piece)
        (:pawn
-        (if (pawn-take-move-p :pawn
+        (if (pawn-take-move-p piece
                               (color piece)
                               (create-move (field-square (aref trajectory (- i 1)))
                                            (field-square field)))
@@ -166,6 +191,11 @@ last field on TRAJECTORY."
                 2
                 1))))))
 
+
+(defun root-chain (chain)
+  (if (= (chain-level chain) 0)
+      chain
+      (root-chain (chain-parent chain))))
 
 
 (defun time-limit (chain &optional index)
@@ -323,17 +353,23 @@ presumably yields more accurate estimations."
        ;; now piece-at-field nil or belongs to opponent
        (when (stop-field-p field :strict nil)
          (let ((ev (piece-value piece-at-field :color chain-color))) ; exchange-value
-           ;(log-message :debug "~A" (print-board t-position :stream nil))
+                                        ;(log-message :debug "~A" (print-board t-position :stream nil))
            (with-move (t-position #|chain-piece-square|# sq square)
-             ;(log-message :debug "bf ~A" (print-board t-position :stream nil))
+                                        ;(log-message :debug "bf ~A" (print-board t-position :stream nil))
              (incf ev (exchange-value t-position square (opposite-color chain-color))))
            (log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
            (when (not (exchange-positive-p ev chain-color))
-             ;; Can not simply move to that square due to negative exchange value.
+             ;; Can't move to that square due to negative exchange value. Find support chains.
              ;;(log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
-             (find-support-chains field t-position the-chain)))
-       ;(move-piece t-position chain-piece-square square)
-         ))
+             (let ((support-chains
+                    (find-support-chains field t-position the-chain)))
+               (dolist (sc support-chains)
+                 (add-chain (chain-piece sc) sc))))
+           ;;(move-piece t-position chain-piece-square square)
+           )))
+    (add-chain piece the-chain)
+    (print-chains-database (slot-value piece 'chains-db))
+    (cdb-iterate (slot-value piece 'chains-db) (subchain0-path the-chain) #'(lambda (c) (print c)))
     the-chain))
 
 
