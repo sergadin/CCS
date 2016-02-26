@@ -19,7 +19,7 @@
          :accessor cdb-root
          :initform (make-cdb-node))
    (search-index
-    :initform (cl-containers:make-container 'cl-containers:simple-associative-container)
+    :initform (cl-containers:make-container 'cl-containers:simple-associative-container :test #'equal)
     :documentation "Map from chain's path to corresponding database node."))
   (:documentation "Store chains in a tree-like structure."))
 
@@ -55,8 +55,13 @@
     (when node
       (mapc function (cl-containers:collect-elements (cdb-node-data node))))))
 
-  (cl-containers:iterate-container (cl-containers:make-iterator
+;  (cl-containers:iterate-container (cl-containers:make-iterator
 
 
 (defun print-chains-database (db)
-  (print (cl-containers:collect-keys (slot-value db 'search-index))))
+  (print "--------------- chains-database -----------------")
+  (loop
+     :for path :in (cl-containers:collect-keys (slot-value db 'search-index))
+     :do (print (mapcar #'square-to-string path)))
+  (print "--------------- --------------- -----------------")
+  db)

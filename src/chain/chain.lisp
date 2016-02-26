@@ -258,18 +258,24 @@ presumably yields more accurate estimations."
 
 
 
-(defun find-support-chains (field position parent &key time-limit (color (chain-color parent)))
+(defun find-support-chains (field position parent &key time-limit (color (chain-color parent))
+                                                    (old-exchange-value 0))
   "Find subchains making FIELD passable by the PARENT chain piece."
   (log-message :trace "Searching for support chains on ~A" (square-to-string (field-square field)))
-  (let ((support-chains nil)
-        (old-exchange-value (exchange-value position (field-square field) (opposite-color color))))
+  (let ((support-chains nil))
     ;; Attack the field by other pieces
     (do-pieces (position (piece square) :color color) ;; ?.. what about pieces from parent's chain?
+
+      (log-message :debug "~A"  (square-to-string square))
+
       (let ((targets (pre-moves piece (field-square field) :attack-only t))
             (horizon (or time-limit (default-horizon piece)))
             (candidate-paths)
             (new-exchange-value))
         ;; Find all empty squares where PIECE can participate in the exchange on FIELD.
+
+        ;(log-message :debug "~A" (mapcar #'square-to-string targets))
+
         (dolist (target-square targets)
           (setf new-exchange-value
                 (with-move (position square target-square)
@@ -279,13 +285,17 @@ presumably yields more accurate estimations."
                       new-exchange-value
                       old-exchange-value
                       color))
-            (loop :for path = (find-paths (kind piece) square target-square horizon :color color)
-               :do (push (cons (- old-exchange-value new-exchange-value) path)  candidate-paths))))
+            (loop :for path :in (find-paths (kind piece) square target-square horizon :color color)
+               :do
+               ;(log-message :debug "~A" (mapcar #'square-to-string path))
+               (push (cons (- old-exchange-value new-exchange-value) path)  candidate-paths))))
+
+        (log-message :debug "Found ~D candidate paths ~A" (length candidate-paths) candidate-paths)
+
         (when candidate-paths
           (let ((ordered-candidates
                  (sort candidate-paths #'<
                        :key #'(lambda (g-path) (estimate-chain-complexity (cdr g-path) position)))))
-            (format t "Best chain found (~{~A ~})~%" (mapcar #'square-to-string (first ordered-candidates)))
             ;;search best chain
             (loop :for (gain . candidate-path) :in ordered-candidates
                :for chain = (make-chain candidate-path
@@ -297,10 +307,10 @@ presumably yields more accurate estimations."
     ;;--- TODO: Make opponents moves impossible due to absolute or relative pin.
 
     ;best-support-chain ?..
-    (knapsack support-chains old-exchange-value time-limit
-              :gain-key #'second
-              :time-key #'first)))
-      ;;(mapcar #'(lambda (t-g-chain) (elt t-g-chain 2)) support-chains)))
+    (mapcar #'(lambda (t-g-chain) (elt t-g-chain 2))
+            (knapsack support-chains old-exchange-value time-limit
+                      :gain-key #'second
+                      :time-key #'first))))
 
 
 (defun make-chain (path position &key parent (max-level +default-chain-depath+))
@@ -321,28 +331,24 @@ presumably yields more accurate estimations."
     (loop :with board = (copy-board t-position)
        :for index :from 1 :below (array-dimension trajectory 0)
        :for field = (aref trajectory index)
-       :and chain-piece-square = (field-square (aref trajectory 0)) :then (field-square field)
+       ;:and chain-piece-square = (field-square (aref trajectory 0)) :then (field-square field)
        :for square = (field-square field)
        :for time-limit = (time-limit the-chain index)
        :for piece-at-field = (whos-at t-position (field-square field))
        :while (< level max-level) ; do not create extremely nested subchains
        :do
-       ;(move-piece board sq (field-square field))
-       ;(print-board board)
-       ;(print (list (field-square field) time-limit
-       ;                 (exchange-value board (field-square field) :white)))
+
        (when piece-at-field ; the field is occupied by a piece
          (cond
            ((eq (color piece-at-field) chain-color)
             ;; remove our piece from the route
             (let* ((escapes (find-escape-chains field board the-chain))
                    (best-escape (first escapes)))
-              ;; Make most reasonable escape move
-              (move-piece t-position (field-square field)
-                          (first (subchain0-path best-escape)))
-              ;;---------
-              (setf piece-at-field nil)))
-              ;;---------
+              ;;add escape-chains to chains-list of piece-at-field
+              (loop :for esc :in escapes
+                 :do
+                 (add-chain piece-at-field esc))))
+
            ((and (not (eq (color piece-at-field) chain-color))
                  (eq (field-type field) :internal-field))
             ;; opponent's piece in the middle: escape, protect or do nothing
@@ -350,26 +356,23 @@ presumably yields more accurate estimations."
             ;;(exchange-value t-position square chain-color)
             nil)))
 
-       ;; now piece-at-field nil or belongs to opponent
        (when (stop-field-p field :strict nil)
          (let ((ev (piece-value piece-at-field :color chain-color))) ; exchange-value
-                                        ;(log-message :debug "~A" (print-board t-position :stream nil))
-           (with-move (t-position #|chain-piece-square|# sq square)
-                                        ;(log-message :debug "bf ~A" (print-board t-position :stream nil))
+           (with-move (t-position sq square)
              (incf ev (exchange-value t-position square (opposite-color chain-color))))
            (log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
            (when (not (exchange-positive-p ev chain-color))
              ;; Can't move to that square due to negative exchange value. Find support chains.
-             ;;(log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
              (let ((support-chains
-                    (find-support-chains field t-position the-chain)))
+                    (find-support-chains field position the-chain :old-exchange-value ev)))
                (dolist (sc support-chains)
-                 (add-chain (chain-piece sc) sc))))
+                 (when (not (eq (chain-piece sc) piece))
+                   (add-chain (chain-piece sc) sc))))
            ;;(move-piece t-position chain-piece-square square)
-           )))
+           ))))
     (add-chain piece the-chain)
     (print-chains-database (slot-value piece 'chains-db))
-    (cdb-iterate (slot-value piece 'chains-db) (subchain0-path the-chain) #'(lambda (c) (print c)))
+    ;(cdb-iterate (slot-value piece 'chains-db) (subchain0-path the-chain) #'(lambda (c) (print c)))
     the-chain))
 
 
