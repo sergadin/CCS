@@ -115,6 +115,9 @@
          (if (eq (color piece) color) +1 -1))
       0))
 
+(defun piece-of-color (piece color)
+  (and piece
+       (eq (color piece) color)))
 
 ;;
 ;; Функции для расстановки фигур

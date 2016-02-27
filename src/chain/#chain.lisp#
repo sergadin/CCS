@@ -388,8 +388,7 @@ presumably yields more accurate estimations."
     (list
      "<pre>"
      (with-output-to-string (s)
-       (print-chains-database (slot-value piece 'chains-db) :stream s)
-       (list "<pre>" s "</pre>"))
+       (print-chains-database (slot-value piece 'chains-db) :stream s))
      "</pre>")))
 
 (defun print-position-in-hypertext (position fen)

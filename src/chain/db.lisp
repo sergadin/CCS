@@ -58,10 +58,14 @@
 ;  (cl-containers:iterate-container (cl-containers:make-iterator
 
 
-(defun print-chains-database (db)
-  (print "--------------- chains-database -----------------")
+(defun print-chains-database (db &key (stream t))
+  (format stream "~&--------------- chains-database -----------------~%")
   (loop
-     :for path :in (cl-containers:collect-keys (slot-value db 'search-index))
-     :do (print (mapcar #'square-to-string path)))
-  (print "--------------- --------------- -----------------")
+     :with search-index = (slot-value db 'search-index)
+     :for path :in (cl-containers:collect-keys search-index)
+     :for node = (cl-containers:item-at search-index path)
+     :do (format stream "~A wight ~D~%"
+                 (mapcar #'square-to-string path)
+                 (length (cl-containers:collect-elements (cdb-node-data node)))))
+  (format stream "~&--------------- --------------- -----------------~%")
   db)

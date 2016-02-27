@@ -33,6 +33,7 @@
                (:file "moves")
                (:file "evaluate")
                (:file "exchange")
+               (:file "debug-frontend")
                (:module "chain"
                         :pathname "chain"
                         :components ((:file "chain")
@@ -41,7 +42,8 @@
                (:file "play")
                (:file "xboard")
                (:file "main"))
-  :depends-on ("cl-utilities" "cl-ppcre" "cl-log" "cl-containers" "dynamic-mixins"))
+  :depends-on ("cl-utilities" "cl-ppcre" "cl-log" "cl-containers" "dynamic-mixins"
+                              "hunchentoot" "clack"))
 
 
 (asdf:defsystem :ccs-test
