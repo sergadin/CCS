@@ -34,13 +34,12 @@ script:
                        (push (pathname "~/sergadin/CCS/") asdf:*central-registry*)
                        (ql:quickload "ccs")
                        (ql:quickload "ccs-test")
-                       (lift:describe-test-result (lift:run-tests :suite :root) t))'
-     else
+                       (lift:describe-test-result (lift:run-tests :suite :root) t))';
+    else
          ros -s lift
              -e '(progn
               (push (pathname "~/sergadin/CCS/") asdf:*central-registry*)
               (ql:quickload "ccs")
               (ql:quickload "ccs-test")
-              (lift:describe-test-result (lift:run-tests :suite :root) t))'
-
-     fi
+              (lift:describe-test-result (lift:run-tests :suite :root) t))';
+    fi
