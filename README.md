@@ -1,5 +1,6 @@
 ### Status
 [![Build Status](https://travis-ci.org/sergadin/CCS.png?branch=master)](https://travis-ci.org/sergadin/CCS)
+[![Coverage Status](https://coveralls.io/repos/github/sergadin/CCS/badge.svg?branch=master)](https://coveralls.io/github/sergadin/CCS?branch=master)
 
 Как загрузить:
 1.

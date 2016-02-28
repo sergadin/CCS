@@ -6,17 +6,16 @@ env:
     - PATH=~/.roswell/bin:$PATH
     - ROSWELL_INSTALL_DIR=$HOME/.roswell
   matrix:
-    - LISP=sbcl-bin
+    - LISP=sbcl-bin COVERALLS=true
     - LISP=ccl-bin
 
 
 install:
   # Install roswell
-
   - curl -L https://raw.githubusercontent.com/snmsts/roswell/release/scripts/install-for-ci.sh | sh
 
-  # Install dependencies
-  #- git clone https://gitlab.common-lisp.net/alexandria/alexandria.git ~/lisp/alexandria
+  # Coveralls support
+  - git clone https://github.com/fukamachi/cl-coveralls ~/lisp/cl-coveralls
 
   - ros -e '(ql:quickload "lift")'
 
@@ -25,8 +24,22 @@ cache:
     - $HOME/.roswell
 
 script:
-  - ros -s lift -e '(progn
+  - if [ "$COVERALLS" ]; then
+         ros -s lift
+             -s cl-coveralls
+             -e '(or
+                    (coveralls:with-coveralls (:exclude "test")
+                       (push (pathname "~/sergadin/CCS/") asdf:*central-registry*)
+                       (ql:quickload "ccs")
+                       (ql:quickload "ccs-test")
+                       (lift:describe-test-result (lift:run-tests :suite :root) t))
+                    (uiop:quit -1))'
+     else
+         ros -s lift
+             -e '(progn
               (push (pathname "~/sergadin/CCS/") asdf:*central-registry*)
               (ql:quickload "ccs")
               (ql:quickload "ccs-test")
               (lift:describe-test-result (lift:run-tests :suite :root) t))'
+
+     fi

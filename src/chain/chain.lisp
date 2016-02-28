@@ -397,7 +397,6 @@ presumably yields more accurate estimations."
         (cond
           (params
            (let ((square-name (cdr (assoc "square" params :test #'string-equal))))
-             (print (print-piece-chains position square-name))
              `(hunchentoot:+http-ok+
                (:content-type "text/html")
                ("<h3>"
