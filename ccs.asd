@@ -43,7 +43,7 @@
                (:file "xboard")
                (:file "main"))
   :depends-on ("cl-utilities" "cl-ppcre" "cl-log" "cl-containers" "dynamic-mixins"
-                              "hunchentoot" "clack"))
+                              "hunchentoot" "clack" "quri"))
 
 
 (asdf:defsystem :ccs-test
