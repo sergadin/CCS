@@ -94,3 +94,11 @@
        (current (funcall f x) (funcall f current)))
       ((funcall test current prev) current)
     #| empty body |#))
+
+
+(defmacro with-mixin ((obj mixin) &body body)
+  (let ((mixin-obj (gensym)))
+    `(let ((,mixin-obj (dynamic-mixins:ensure-mix ,obj ,mixin)))
+       (prog1
+           (progn ,@body)
+         (dynamic-mixins:delete-from-mix ,mixin-obj ,mixin)))))

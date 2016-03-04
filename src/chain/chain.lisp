@@ -10,6 +10,7 @@
   (declare (ignore piece))
   3)
 
+
 (defclass <piece> (piece)
   ((position :initarg :position)
    (square :type square
@@ -20,12 +21,22 @@
            participates in. Indexed by subchain's path squares.")))
 
 (defgeneric add-chain (piece chain)
-  (:documentation "Register that PIECE paricipates in the CHAIN."))
+  (:documentation "Register that PIECE participates in the CHAIN."))
 
 
 (defclass <unlostable-piece> (<piece>)
   () ; no slots
-  (:documentation "Mixin class used for local modification of value-of function."))
+  (:documentation "Mixin class used for local modification of value-of function.
+Intended usage:
+  (with-unlostable (piece)
+    (forms))
+Forms will be evaluated with redefined methods, e.g. value-of, for the PIECE.
+"))
+
+(defmacro with-unlostable ((piece) &body body)
+  "Evaluate BODY with PIECE class changed to <unlostable-piece>."
+  `(with-mixin (,piece '<unlostable-piece>)
+     ,@body))
 
 (defmethod value-of ((piece <unlostable-piece>) &key)
   (declare (ignore piece))
@@ -52,12 +63,6 @@
 
 (defun copy-position (position)
   (shallow-copy-object position))
-
-
-#+(or)(defun piece-at (board sq)
-  "Возвращает объект класса `<piece>'"
-  (multiple-value-bind (p c) (whos-at board sq)
-    (make-instance '<piece> :position (make-position board) :kind (kind p) :color c)))
 
 
 
@@ -147,6 +152,39 @@
    (position :initarg :position
              :accessor chain-position)))
 
+(defclass <bunch-of-chains> ()
+  ((chains :type list
+           :initform nil
+           :initarg :chains
+           :accessor bunch-chains))
+  (:documentation "A collection of chains that should be realized together."))
+
+
+(defclass <alternative-actions> ()
+  ((bunches :initform nil
+            :accessor aa-bunches)
+   (mainline :type (or null <bunch-of-chains)
+             :accessor aa-mainline
+             :documentation "Member of BUNCHES that considered as the main alternative."))
+  (:documentation "Representation of the available alternatives for some action."))
+
+(defclass <cdb-node-data> ()
+  ((chain :type <chain>
+          :documentation "The chain.")
+   (bunch :type (or <bunch-of-chains> null)
+          :documentation "The bunch to which the chain belongs.")
+   (selected :type (or t null)
+             :documentation "T, if this subchain was selected for play in the CHAIN's root."))
+  (:documentation "Data structure assigned to a node of the `piece''s chains database."))
+
+
+(defun make-bunch (chain-or-chains)
+  "Make a `bunch-of-chains' from the list of chains or a chain."
+  (etypecase chain-or-chains
+    (<chain> (make-bunch (list chain-or-chains)))
+    (list (make-instance '<bunch-of-chains> :chains chain-or-chains))))
+
+
 (defun chain-color (chain)
   (color (chain-piece chain)))
 
@@ -208,9 +246,11 @@ last field on TRAJECTORY."
      :collect (field-square field)))
 
 (defmethod add-chain ((piece <piece>) (chain-or-subchain <chain>))
+  ;; (log-message :trace "Adding the chain ~A of level ~D to the database" chain-or-subchain (chain-level chain-or-subchain))
+  (let ((node
   (cdb-add (slot-value piece 'chains-db)
            (subchain0-path chain-or-subchain)
-           (root-chain chain-or-subchain)))
+           chain-or-subchain))
 
 
 (defun estimate-chain-complexity (path position &key (precision 0))
@@ -223,7 +263,7 @@ presumably yields more accurate estimations."
 
 
 
-(defun find-escape-chains (field position parent)
+(defun find-escape-chains (field position parent &key (register t))
   "Field clearance."
   (log-message :trace "Searching for escape chain from ~A. Level=~D"
                (square-to-string (field-square field))
@@ -240,26 +280,31 @@ presumably yields more accurate estimations."
     ;;--- TODO: find best candidate
     (mapcar #'(lambda (path)
                 ; (format t "~A ==> ~A~%" (square-to-string (first path)) (square-to-string (second path)))
-                (make-chain path position :parent parent))
+                (make-chain path position :parent parent :register register))
             paths)))
 
 (defun knapsack (objects min-gain-limit max-time-limit
                  &key (gain-key #'identity)
                    (time-key #'(lambda (x) (declare (ignore x)) 1)))
   "Жадный алгоритм решения задачи о рюкзаке"
-  (loop :for obj :in (sort objects #'> :key gain-key)
-     :when (or (null max-time-limit)
-               (<= (+ (funcall time-key obj) current-time-spent) max-time-limit))
-     :collect obj
-     :summing (funcall time-key obj) :into current-time-spent
-     :summing (funcall gain-key obj) :into achieved-gain
-     :while (< achieved-gain min-gain-limit)))
-     ;:for sum-gain = (gain-key obj)
-
+  (flet ((better-item (x y) ; X is better than Y: more gain in less time
+           (let ((gx (funcall gain-key x))
+                 (gy (funcall gain-key y)))
+             (or (> gx gy)
+                 (and (= gx gy)
+                      (< (funcall time-key x) (funcall time-key y)))))))
+    (loop :for obj :in (sort objects #'better-item)
+       :when (or (null max-time-limit)
+                 (<= (+ (funcall time-key obj) current-time-spent) max-time-limit))
+       :collect obj
+       :summing (funcall time-key obj) :into current-time-spent
+       :summing (funcall gain-key obj) :into achieved-gain
+       :while (< achieved-gain min-gain-limit))))
 
 
 (defun find-support-chains (field position parent &key time-limit (color (chain-color parent))
-                                                    (old-exchange-value 0))
+                                                    (old-exchange-value 0)
+                                                    (register t))
   "Find subchains making FIELD passable by the PARENT chain piece."
   (log-message :trace "Searching for support chains on ~A" (square-to-string (field-square field)))
   (let ((support-chains nil))
@@ -275,50 +320,58 @@ presumably yields more accurate estimations."
                 (with-move (position square target-square)
                   (exchange-value position (field-square field) (opposite-color color))))
           (when (and (empty-square-p position target-square)
-                     (better-exchange-p
-                      new-exchange-value
-                      old-exchange-value
-                      color))
+                     (better-exchange-p new-exchange-value
+                                        old-exchange-value
+                                        color))
             (loop :for path :in (find-paths (kind piece) square target-square horizon :color color)
                :do
-               (push (cons (- old-exchange-value new-exchange-value) path)  candidate-paths))))
+               (push (cons (- old-exchange-value new-exchange-value) path) candidate-paths))))
 
-        (log-message :debug "Found ~D candidate paths for ~A~A"
+        (log-message :debug "Found ~D candidate paths for ~A~A support on ~A"
                      (length candidate-paths) (piece-to-name (kind piece))
-                     (square-to-string square))
+                     (square-to-string square)
+                     (square-to-string (field-square field)))
 
         (when candidate-paths
           (let ((ordered-candidates
                  (sort candidate-paths #'<
                        :key #'(lambda (g-path) (estimate-chain-complexity (cdr g-path) position)))))
-            ;;search best chain
+            ;; Find the best chain
             (loop :for (gain . candidate-path) :in ordered-candidates
                :for chain = (make-chain candidate-path
                                         position
-                                        :parent parent)
+                                        :parent parent
+                                        :register nil)
                :when (or (not time-limit) (<= (time-limit chain) time-limit))
                :do (push (list (time-limit chain) gain chain) support-chains)
+               (format t "~{~A~^-~}~%" (mapcar #'square-to-string candidate-path))
                (return))))))
     ;;--- TODO: Make opponents moves impossible due to absolute or relative pin.
 
-    ;best-support-chain ?..
-    (print support-chains)
-    (let* ((best-bucket (knapsack support-chains old-exchange-value time-limit
-                                  :gain-key #'second
-                                  :time-key #'first))
-           (chains (mapcar #'(lambda (t-g-chain) (elt t-g-chain 2))
-                           best-bucket)))
-      (log-message :trace "Suppoort found for ~A: ~{~A~^; ~}"
-                   (square-to-string (field-square field))
-                   (mapcar #'(lambda (chain)
-                               (format nil "~A (~A)"
-                                       (mapcar #'square-to-string (subchain0-path chain))
-                                       (estimate-chain-complexity (subchain0-path chain) position)))
-                           chains))
-      chains)))
+    ;; best-support-chain ?..
+    (log-message :debug "~A" support-chains)
+    (loop
+       :with best-bucket = (knapsack support-chains old-exchange-value time-limit
+                                     :gain-key #'second
+                                     :time-key #'first)
+       :with chains = (mapcar #'(lambda (t-g-chain) (elt t-g-chain 2))
+                              best-bucket)
+       :initially
+       (log-message :trace "Suppoort found for ~A: ~{~A~^; ~}"
+                    (square-to-string (field-square field))
+                    (mapcar #'(lambda (chain)
+                                (format nil "~A (~A)"
+                                        (mapcar #'square-to-string (subchain0-path chain))
+                                        (estimate-chain-complexity (subchain0-path chain) position)))
+                            chains))
+       :for chain :in chains :when register :do (add-chain (chain-piece chain) chain)
+       :finally (return (make-bunch chains)))))
 
 
-(defun make-chain (path position &key parent (max-level +default-chain-depath+))
+(defun make-chain (path position
+                   &key parent
+                     (max-level +default-chain-depath+)
+                     (register t))
   (let* ((t-position (copy-position position))
          (sq (first path))
          (piece (whos-at t-position sq))
@@ -370,13 +423,13 @@ presumably yields more accurate estimations."
            (when (not (exchange-positive-p ev chain-color))
              ;; Can't move to that square due to negative exchange value. Find support chains.
              (let ((support-chains
-                    (find-support-chains field position the-chain :old-exchange-value ev)))
-               (dolist (sc support-chains)
+                    (find-support-chains field position the-chain :old-exchange-value ev :register register)))
+               (dolist (sc (bunch-chains support-chains))
                  (when (not (eq (chain-piece sc) piece))
                    (add-chain (chain-piece sc) sc))))
            ;;(move-piece t-position chain-piece-square square)
            ))))
-    (add-chain piece the-chain)
+    (when register (add-chain piece the-chain))
     ;;(print-chains-database (slot-value piece 'chains-db))
     ;;(cdb-iterate (slot-value piece 'chains-db) (subchain0-path the-chain) #'(lambda (c) (print c)))
     the-chain))
@@ -388,22 +441,32 @@ presumably yields more accurate estimations."
     (list
      "<pre>"
      (with-output-to-string (s)
-       (print-chains-database (slot-value piece 'chains-db) :stream s))
+       (print-chains-database (slot-value piece 'chains-db)
+                              :stream s
+                              :test #'(lambda (c)
+                                        (format t "~A of level ~D~%" c (chain-level c))
+                                        (= 1 (chain-level c)))))
      "</pre>")))
 
+(defun print-position-ajax (position square-name chains-level)
+  `(hunchentoot:+http-ok+
+    (:content-type "text/html")
+    ("<h3>"
+     ,square-name
+     "</h3>"
+     ,@(print-piece-chains position square-name))))
+
+
 (defun print-position-in-hypertext (position fen)
+  "Generate HTML pages required for chains browsing in the debugging frontwnd."
   #'(lambda (env)
       (let ((params (quri:url-decode-params (getf env :query-string))))
         (cond
-          (params
-           (let ((square-name (cdr (assoc "square" params :test #'string-equal))))
-             `(hunchentoot:+http-ok+
-               (:content-type "text/html")
-               ("<h3>"
-                ,square-name
-                "</h3>"
-                ,@(print-piece-chains position square-name)))))
-          (t
+          (params ; PARAMS are set: this is an ajax request for additional data
+           (let ((square-name (cdr (assoc "square" params :test #'string-equal)))
+                 (chains-level (cdr (assoc "chains-level" params :test #'string-equal))))
+             (print-position-ajax position square-name chains-level)))
+          (t ; Show default page with the diagram
            `(hunchentoot:+http-ok+
              (:content-type "text/html")
              ,(list
