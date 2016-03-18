@@ -37,7 +37,8 @@
                (:module "chain"
                         :pathname "chain"
                         :components ((:file "chain")
-                                     (:file "db")))
+                                     (:file "db")
+                                     (:file "graph")))
                (:file "candidates")
                (:file "play")
                (:file "xboard")

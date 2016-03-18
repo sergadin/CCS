@@ -64,9 +64,17 @@ Forms will be evaluated with redefined methods, e.g. value-of, for the PIECE.
 (defun copy-position (position)
   (shallow-copy-object position))
 
+(defmethod print-object ((obj <position>) out)
+  ;(print-unreadable-object (obj out :type t)
+  ;  (format out "~s" (foo-name obj))))
+  (format out "~%")
+  (print-diagram obj :stream out))
 
 
 (deftype field-type () '(member :stop-field :internal-field :extra-stop-feild))
+
+(deftype chain-type () '(member :support :escape :main))
+
 
 (defclass <trajectory-field> ()
   ((pos :type square
@@ -85,7 +93,8 @@ Forms will be evaluated with redefined methods, e.g. value-of, for the PIECE.
                :documentation "")
    (subchains :type (vector t *)
               :accessor tf-subchains
-              :initform (make-array 1 :adjustable t)))
+              :initform (make-array 0 :adjustable t
+                                    :fill-pointer t)))
   (:documentation "Поля траектории"))
 
 
@@ -100,7 +109,10 @@ Forms will be evaluated with redefined methods, e.g. value-of, for the PIECE.
   "Constructs a vector of `trajectory-field's corresponding to PATH."
   (let* ((moves (path-to-moves path))
          (segments (mapcar #'(lambda (move)
-                               (squares-on-line (car move) (cdr move)))
+                               (let ((sol (squares-on-line (car move) (cdr move))))
+                                 (if sol
+                                     sol
+                                     (list (car move) (cdr move)))))
                            moves))
          (len (- (reduce  #'+ segments :key #'length) (length segments) -1))
          (fields (make-array len :element-type '<trajectory-field>)))
@@ -118,12 +130,55 @@ Forms will be evaluated with redefined methods, e.g. value-of, for the PIECE.
            (incf i))
     fields))
 
-(defclass <chain> ()
+
+
+
+(defclass <action> ()
+  ((alternatives :type (or null <alternative-actions>)
+                 :initform nil
+                 :accessor alt-actions)
+   (selected :type (or t null))))
+
+(defclass <alternative-actions> ()
+  ((actions :type list
+            :initform nil
+            :accessor aa-actions)
+   (mainline :type (or null <action>)
+             :initform nil
+             :accessor aa-mainline
+             :documentation "Member of ACTION that considered as the main alternative."))
+  (:documentation "Representation of the available alternatives for some action."))
+
+(defgeneric add-alternative (action alternative-action &key mainline)
+  (:documentation "................"))
+
+
+(defmethod add-alternative ((main <action>) (alt <action>) &key (mainline nil))
+  (with-accessors ((maa alt-actions)) main
+    (when (null maa)
+      (setf maa (make-instance '<alternative-actions>)))
+    (if (alt-actions alt)
+        (loop :for act :in (aa-actions (alt-actions alt)) :do
+           (when (not (find act (aa-actions maa)))
+             (push act (aa-actions maa)))
+           (setf (alt-actions act) maa))
+        (progn
+          (push alt (aa-actions maa))
+          (setf (alt-actions alt) maa)))
+    (when (or mainline (null (aa-mainline maa)))
+      (setf (aa-mainline maa) alt))))
+
+
+(defclass <chain> (<action>)
   ((level :type integer
           :initform 0
           :initarg :level
           :accessor chain-level
           :documentation "Порядок цепочки")
+   (type :type chain-type
+         :initarg :type
+         :accessor chain-type
+         :documentation "Chain type")
    (depth-analyzed :type integer
           :initform 1
           :accessor chain-depth-analyzed
@@ -152,21 +207,12 @@ Forms will be evaluated with redefined methods, e.g. value-of, for the PIECE.
    (position :initarg :position
              :accessor chain-position)))
 
-(defclass <bunch-of-chains> ()
+(defclass <bunch-of-chains> (<action>)
   ((chains :type list
            :initform nil
            :initarg :chains
            :accessor bunch-chains))
   (:documentation "A collection of chains that should be realized together."))
-
-
-(defclass <alternative-actions> ()
-  ((bunches :initform nil
-            :accessor aa-bunches)
-   (mainline :type (or null <bunch-of-chains)
-             :accessor aa-mainline
-             :documentation "Member of BUNCHES that considered as the main alternative."))
-  (:documentation "Representation of the available alternatives for some action."))
 
 (defclass <cdb-node-data> ()
   ((chain :type <chain>
@@ -177,13 +223,13 @@ Forms will be evaluated with redefined methods, e.g. value-of, for the PIECE.
              :documentation "T, if this subchain was selected for play in the CHAIN's root."))
   (:documentation "Data structure assigned to a node of the `piece''s chains database."))
 
-
 (defun make-bunch (chain-or-chains)
   "Make a `bunch-of-chains' from the list of chains or a chain."
   (etypecase chain-or-chains
     (<chain> (make-bunch (list chain-or-chains)))
     (list (make-instance '<bunch-of-chains> :chains chain-or-chains))))
-
+     ;(let ((bunch (make-instance '<bunch-of-chains> :chains chain-or-chains)))
+     ;       (loop :for ch :in chain-or-chains :do ( (chain-bunch ))
 
 (defun chain-color (chain)
   (color (chain-piece chain)))
@@ -245,9 +291,11 @@ last field on TRAJECTORY."
      :when (stop-field-p field)
      :collect (field-square field)))
 
+
+
 (defmethod add-chain ((piece <piece>) (chain-or-subchain <chain>))
   ;; (log-message :trace "Adding the chain ~A of level ~D to the database" chain-or-subchain (chain-level chain-or-subchain))
-  (let ((node
+  ;(let ((node
   (cdb-add (slot-value piece 'chains-db)
            (subchain0-path chain-or-subchain)
            chain-or-subchain))
@@ -260,7 +308,6 @@ presumably yields more accurate estimations."
   (declare (ignore precision))
   (let ((trajectory (make-trajectory path)))
     (trajectory-time-limit trajectory position)))
-
 
 
 (defun find-escape-chains (field position parent &key (register t))
@@ -279,9 +326,12 @@ presumably yields more accurate estimations."
                              (moves piece-at-field (field-square field) :color color)))))
     ;;--- TODO: find best candidate
     (mapcar #'(lambda (path)
-                ; (format t "~A ==> ~A~%" (square-to-string (first path)) (square-to-string (second path)))
-                (make-chain path position :parent parent :register register))
+                (format t "~A ==> ~A~%" (square-to-string (first path)) (square-to-string (second path)))
+                (print (make-chain path position :parent parent :register register
+                                   :type :escape)))
             paths)))
+
+
 
 (defun knapsack (objects min-gain-limit max-time-limit
                  &key (gain-key #'identity)
@@ -301,11 +351,27 @@ presumably yields more accurate estimations."
        :summing (funcall gain-key obj) :into achieved-gain
        :while (< achieved-gain min-gain-limit))))
 
+(defun piece-allowed-in-chain-p (piece path chain)
+  (cond
+    ((null chain) t)
+    ((not (eq piece (chain-piece chain)))
+      (piece-allowed-in-chain-p piece path (chain-parent chain)))
+    (t
+     (every #'(lambda (sq)  (let ((field (find sq
+                                   (coerce (chain-trajectory chain) 'list)
+                                   :key #'field-square)))
+                              (and field (stop-field-p field :strict t))))
+            path))))
+
+
+;(defun path-along-parents-traject-p (
+
 
 (defun find-support-chains (field position parent &key time-limit (color (chain-color parent))
                                                     (old-exchange-value 0)
                                                     (register t))
   "Find subchains making FIELD passable by the PARENT chain piece."
+  (assert (not (null parent)))
   (log-message :trace "Searching for support chains on ~A" (square-to-string (field-square field)))
   (let ((support-chains nil))
     ;; Attack the field by other pieces
@@ -324,6 +390,8 @@ presumably yields more accurate estimations."
                                         old-exchange-value
                                         color))
             (loop :for path :in (find-paths (kind piece) square target-square horizon :color color)
+               :when (and (not (eq piece (chain-piece parent)))
+                          (piece-allowed-in-chain-p piece path parent))
                :do
                (push (cons (- old-exchange-value new-exchange-value) path) candidate-paths))))
 
@@ -341,7 +409,8 @@ presumably yields more accurate estimations."
                :for chain = (make-chain candidate-path
                                         position
                                         :parent parent
-                                        :register nil)
+                                        :register nil
+                                        :type :support)
                :when (or (not time-limit) (<= (time-limit chain) time-limit))
                :do (push (list (time-limit chain) gain chain) support-chains)
                (format t "~{~A~^-~}~%" (mapcar #'square-to-string candidate-path))
@@ -357,21 +426,33 @@ presumably yields more accurate estimations."
        :with chains = (mapcar #'(lambda (t-g-chain) (elt t-g-chain 2))
                               best-bucket)
        :initially
-       (log-message :trace "Suppoort found for ~A: ~{~A~^; ~}"
+       (log-message :trace "Support found for ~A: ~{~A~^; ~}"
                     (square-to-string (field-square field))
                     (mapcar #'(lambda (chain)
                                 (format nil "~A (~A)"
                                         (mapcar #'square-to-string (subchain0-path chain))
                                         (estimate-chain-complexity (subchain0-path chain) position)))
                             chains))
+
        :for chain :in chains :when register :do (add-chain (chain-piece chain) chain)
+
        :finally (return (make-bunch chains)))))
+
+(defmethod print-object ((obj <chain>) out)
+  (print-unreadable-object (obj out :type t)
+    (format out "[~A L~D ~A] ~{~A~^ -> ~}"
+            (piece-to-name (kind (chain-piece obj)))
+            (chain-level obj)
+            (chain-type obj)
+            (mapcar #'square-to-string (subchain0-path obj)))))
 
 
 (defun make-chain (path position
                    &key parent
+                     type
                      (max-level +default-chain-depath+)
                      (register t))
+  (check-type type chain-type "not a valid value for type argument")
   (let* ((t-position (copy-position position))
          (sq (first path))
          (piece (whos-at t-position sq))
@@ -383,7 +464,8 @@ presumably yields more accurate estimations."
                                    :trajectory trajectory
                                    :level level
                                    :parent parent
-                                   :position position)))
+                                   :position position
+                                   :type type)))
     (when (null parent)
       (log-message :trace "Constructing chain for the path ~{~A ~}" (mapcar #'square-to-string path)))
     (loop :with board = (copy-board t-position)
@@ -400,11 +482,14 @@ presumably yields more accurate estimations."
          (cond
            ((eq (color piece-at-field) chain-color)
             ;; remove our piece from the route
-            (let* ((escapes (find-escape-chains field board the-chain))
+            (let* ((escapes (find-escape-chains field board the-chain :register nil))
                    (best-escape (first escapes)))
               ;;add escape-chains to chains-list of piece-at-field
               (loop :for esc :in escapes :do
-                 (add-chain piece-at-field esc))))
+                 (format t "escape chain ~A ~% ~{~A~%~}" esc escapes)
+                 (add-chain piece-at-field esc)
+                 (vector-push-extend esc (tf-subchains field))
+                 (add-alternative best-escape esc))))
 
            ((and (not (eq (color piece-at-field) chain-color))
                  (eq (field-type field) :internal-field))
@@ -426,10 +511,13 @@ presumably yields more accurate estimations."
                     (find-support-chains field position the-chain :old-exchange-value ev :register register)))
                (dolist (sc (bunch-chains support-chains))
                  (when (not (eq (chain-piece sc) piece))
-                   (add-chain (chain-piece sc) sc))))
+                   (add-chain (chain-piece sc) sc)
+                   (vector-push-extend sc (tf-subchains field))))))
            ;;(move-piece t-position chain-piece-square square)
-           ))))
+           )))
     (when register (add-chain piece the-chain))
+    (format t "the-chain ~A~%" the-chain)
+    (format t "parent ~A~%" parent)
     ;;(print-chains-database (slot-value piece 'chains-db))
     ;;(cdb-iterate (slot-value piece 'chains-db) (subchain0-path the-chain) #'(lambda (c) (print c)))
     the-chain))
@@ -444,8 +532,8 @@ presumably yields more accurate estimations."
        (print-chains-database (slot-value piece 'chains-db)
                               :stream s
                               :test #'(lambda (c)
-                                        (format t "~A of level ~D~%" c (chain-level c))
-                                        (= 1 (chain-level c)))))
+                                       ; (format t "~A of level ~D~%" c (chain-level c))
+                                        (<= 0 (chain-level c)))))
      "</pre>")))
 
 (defun print-position-ajax (position square-name chains-level)
@@ -497,17 +585,24 @@ presumably yields more accurate estimations."
   (start-clack)
   (let ((*board* (create-board))
         (fen "8/8/4b1p1/2Bp3p/5P1P/1pK1Pk2/8/8 b - - 0 1") ; kotov-botvinnik
-        (initial-sq #@e6@) ; #@h5@)
-        (target-sq #@e2@) ; #@h1@)
-        (color :black))
-    (load-from-fen-string *board* fen)
+        (test-escape "8/8/N6p/P2b4/8/8/8/8 w - - 0 1") ;
+        (initial-sq #@a5@) ;#@e6@)  ; #@h5@)
+        (target-sq #@a8@) ;#@f1@) ; #@h1@)
+        (color :white))  ;:white))
+    ;(load-from-fen-string *board* fen)
+    (load-from-fen-string *board* test-escape)
     (log-message :debug "~A" (print-board *board* :stream nil))
     (let ((position (make-position *board*)))
       (do-pieces (*board* (p sq) :color color)
         (when (= sq initial-sq)
+          (print (first (last (find-paths (kind p) sq target-sq 4 :color color))))
           (let* ((traject (first (last (find-paths (kind p) sq target-sq 4 :color color))))
-                 (chain (make-chain traject position)))
+                 (chain (make-chain traject position :type :main)))
+            (format t "*-*-*-*-*--********************************~%~A~%"
+                    (identical-structure-p chain chain color))
             (print (mapcar #'square-to-string traject)))))
-      (dfe-add-handler "/position/" (print-position-in-hypertext position fen))))
+     ; (dfe-add-handler "/position/" (print-position-in-hypertext position fen))))
+      (dfe-add-handler "/position/" (print-position-in-hypertext position test-escape))))
   (format t "~%Open http://localhost:8020/ in a browser.~%~
-               ========================================="))
+               =========================================")
+  )

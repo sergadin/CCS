@@ -44,10 +44,10 @@
        (setf node (make-cdb-node))
        (setf (cl-containers:item-at (cdb-node-children parent) square)
              node))
+     (cl-containers:insert-item (cdb-node-data node) node-data)
      :finally
      (setf (cl-containers:item-at (slot-value db 'search-index) path)
-           node)
-     (cl-containers:insert-item (cdb-node-data node) node-data)))
+           node)))
 
 (defmethod cdb-iterate ((db <chains-database>) path function)
   (let ((node
@@ -66,8 +66,9 @@
      :for node = (cl-containers:item-at search-index path)
      :for chains-at-node = (cl-containers:collect-items (cdb-node-data node) :filter test)
      :when (< 0 (count-if test chains-at-node))
-     :do (format stream "~A wight ~D~%"
+     :do (format stream "~A wight ~D~%            ~{~A~^~%            ~}~%"
                  (mapcar #'square-to-string path)
-                 (length chains-at-node)))
+                 (length chains-at-node)
+                 (mapcar #'(lambda (chain) (list (chain-type chain) (chain-parent chain))) chains-at-node)))
   (format stream "~&--------------- --------------- -----------------~%")
   db)
