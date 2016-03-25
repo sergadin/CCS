@@ -1,0 +1,54 @@
+\begin{thebibliography}{10}
+
+\bibitem{Berliner:1993:Playing}
+{\sc Berliner, H.}
+\newblock Playing computer-chess in the human style.
+\newblock {\em ICCA JOURNAL 16}, 3 (1993), 176--182.
+
+\bibitem{Botvinnik1970}
+{\sc Botvinnik, M.~M.}
+\newblock {\em Computers, Chess and Long-Range Planning}.
+\newblock Springer {US}, 1970.
+
+\bibitem{Botvinnik:1984}
+{\sc Botvinnik, M.~M.}
+\newblock {\em Computers in Chess: Solving Inexact Search Problems}.
+\newblock Springer Science + Business Media, 1984.
+
+\bibitem{CAMPITELLI2007}
+{\sc Campitelli, G., Gobet, F., Head, K., Buckley, M., and Parker, A.}
+\newblock Brain localization of memory chunks in chessplayers.
+\newblock {\em Int J Neurosci 117}, 12 (jan 2007), 1641--1659.
+
+\bibitem{chase1973perception}
+{\sc Chase, W.~G., and Simon, H.~A.}
+\newblock Perception in chess.
+\newblock {\em Cognitive psychology 4}, 1 (1973), 55--81.
+
+\bibitem{degroot:tcc65}
+{\sc {degroot}, A.~D.}
+\newblock {\em Thought and Choice in Chess}.
+\newblock Mouton, The Hague, The Netherlands, 1965.
+
+\bibitem{Fogel:2004:self-learning}
+{\sc Fogel, D., Hays, T., Hahn, S., and Quon, J.}
+\newblock A self-learning evolutionary chess program.
+\newblock {\em Proceedings of the IEEE 92}, 12 (Dec 2004), 1947--1954.
+
+\bibitem{reingold:2005:perception}
+{\sc Reingold, E.~M., and Charness, N.}
+\newblock Perception in chess: Evidence from eye movements.
+\newblock {\em Cognitive processes in eye guidance\/} (2005), 325--354.
+
+\bibitem{Stilman:2000:LGS}
+{\sc Stilman, B.}
+\newblock {\em Linguistic Geometry: From Search to Construction}.
+\newblock Kluwer Academic Publishers, Norwell, MA, USA, 2000.
+
+\bibitem{Wirth:2015:on-learning}
+{\sc Wirth, C., and Furnkranz, J.}
+\newblock On learning from game annotations.
+\newblock {\em Computational Intelligence and AI in Games, IEEE Transactions on
+  7}, 3 (Sept 2015), 304--316.
+
+\end{thebibliography}
