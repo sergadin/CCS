@@ -9,16 +9,19 @@
 \usepackage{subfigure}
 \usepackage{url}
 
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes,shadows,arrows}
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{graphs}
+
 % Стиль презентации
 \usetheme{Frankfurt}
 \begin{document}
 \title{Математическое моделирование\\ когнитивных процессов при игре в шахматы} 
-\author{Афанасьева Анастасия}
+\author{Афанасьева А.Е., Афонин С.А.}
 %\institute{Московский государственный университет имени М.",В.",Ломоносова}
 \institute{Московский государственный университет имени М.",В.",Ломоносова\\
-    \vspace{0.7cm}
-    Научный руководитель:  Афонин Сергей Александрович \\
-    \vspace{0.7cm}
+  \vspace{2cm}
 }
 \date{Москва, 2016} 
 % Создание заглавной страницы
@@ -27,6 +30,23 @@
 % Автоматическая генерация содержания
 \frame{\frametitle{Содержание}\tableofcontents}
 
+% Вывести диаграмму с отмеченным ходом
+%
+\newcommand{\showDiagram}[2]{%
+      \chessboard[%
+      setpieces={#1},%
+      arrow=stealth,%
+      linewidth=.25ex,%
+      padding=1ex,%
+      color=red!55!white,%
+      pgfstyle=straightmove,%
+      shortenstart=1ex,%
+      showmover=false,%
+      markmoves={#2},%
+      padding=10ex,%
+      shortenend=1ex%
+      ]%
+}
 
 
 \section[Зачем]{Зачем этим нужно заниматься?}
