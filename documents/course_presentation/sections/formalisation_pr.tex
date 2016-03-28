@@ -1,3 +1,69 @@
+\begin{frame}{Технические шаги для решения задачи}
+Для решения содержательных задач необходимо реализовать ряд вспомогательных функций:
+\begin{itemize}
+\item определить соответствие хода правилам;
+\item строить траектории на пустой доске;
+\item оценивать последовательность взятий и величину размена на поле;
+\item находить фигуры, способные повлиять на размен, и позиции, которые им необходимо занять;
+\end{itemize}
+Все эти функции были реализованы.
+%построение цепочки
+\end{frame}
+
+\begin{frame}{Пример цепочки: дерево (repeat)}
+\begin{tabular}{ll}
+\begin{tikzpicture}
+\begin{scope}[every node/.style={circle,thick,draw}]
+    \node (A5) at (0,0) {a5};
+    \node (A6) at (2,0) {a6};
+    \node (A7) at (4,0) {a7};
+    \node (A8) at (6,0) {a8};
+    \node (NA7) at (2,2) {a7};
+    \node (B5) at (4,2) {b5};
+    \node (C7) at (6,2) {c7};
+    \node (H3) at (4,-2) {h3};
+    \node (G2) at (6,-2) {g2};
+\end{scope}
+
+\begin{scope}[%>={Stealth[black]},
+              every node/.style={fill=white,circle},
+              every edge/.style={draw=red,very thick}]
+    % подцепочка 0
+    \path [->] (A5) edge (A6);
+    \path [->] (A6) edge (A7);
+    \path [->] (A7) edge (A8);
+    % Защита
+    \path [->] (H3) edge (G2);
+    \path [->] (G2) edge[gray, draw=gray, dashed] (A8);
+    % Отступление 
+    \path [->] (NA7) edge (B5);
+    \path [->] (B5) edge (C7);
+    \path [->] (B5) edge[gray, draw=gray, dashed] (A7);
+    \path [->] (C7) edge[gray, draw=gray, dashed, bend left] (G2);
+    %\path [->] (B) edge[bend right=60] node {$1$} (E); 
+\end{scope}
+\end{tikzpicture}
+&
+{\scalebox{0.5}{\showDiagram{Pa5, Na7, bh3}{}}}
+\end{tabular}
+
+Пунктиром отмечены поля, к которым <<подтянуты>> соотвествующие подцепочки.
+\end{frame}
+
+\begin{frame}{Формальная модель}
+Множество полей $\mathfrak{S} \coloneqq \{a1, b1, \dots, h8\}$, и типов $\mathcal{ST} \coloneqq \{Stop, Internal\}$ \\
+Множество фигур $\mathcal{K} \coloneqq \{ \dots \}$, и цветов $\mathcal{C} \coloneqq \{Black, White\}$ \\
+Доска $D \colon \mathcal{S} \to \mathcal{K} \times \mathcal{C} $ --- сопоставление полю доски фигуры определенного типа и цвета \\
+Траектория $Tr \in \left( \mathcal{S} \times \mathcal{ST} \right)^+ $ 
+\\
+Цепочка $Chain \coloneqq \langle color, traj, sa \rangle$,  где $color \in \mathcal{C}, traj \in Tr, sa \subset \mathbb{N} \times 2^{\mathtt{Chains}} $ 
+\end{frame}
+
+
+
+\endinput
+
+
 \begin{frame}{Формализация: построение цепи}
 \begin{columns}
 \column{0.5\textwidth}
@@ -15,6 +81,8 @@
 Так как цепи весьма вариативны, необходимо выбрать оптимальное поддерево подцепей для цепи - произвести локальную оптимизацию.
 \end{frame}
 
+
+
 \begin{frame}{Формализация: оптимизация при построении}
 \begin{columns}
 \column{0.5\textwidth}
@@ -29,4 +97,31 @@
 \end{itemize}
 \end{columns}
 Глобальная оптимизация заключается в уточнении оценки для фигур по числу цепей, что может повлиять на уже построенные цепи
+\end{frame}
+
+
+\begin{frame}{Технические шаги для решения задачи}
+Для решения содержательных задач необходимо реализовать ряд вспомогательных функций:
+\begin{itemize}
+\item определить локальные цели для данной позиции; - попасть в ферзи, съесть фигуру противника дороже текущей.
+\item наметить план достижения цели;
+\item проверить осуществимость плана;
+\item предусмотреть действия противника;
+\item объединить все планы в единое представление позиции;
+\item определить оптимальную последовательность действий.
+\end{itemize}
+Все эти функции были реализованы.
+\end{frame}
+
+\begin{frame}{Формальные определения}
+\begin{description}
+\item[Траектория] последовательность полей движения фигуры на пустой доске
+\item[Горизонт] максимальная длина рассматриваемых траекторий
+\item[Цель] фигуры противника или поля
+\item[Подцепочка] действия, направленные на достижение цели
+\item[Цепочка] совокупность действий, направленных на достижение цели
+\item[Вилочность] совпадение частей цепочек
+\item[Оценка фигуры] числовая характеристика <<полезности>> фигуры
+\item[Время успевания] допустимое число ходов для защиты от атаки противника
+\end{description}
 \end{frame}
