@@ -51,19 +51,33 @@
 \end{frame}
 
 \begin{frame}{Формальная модель}
-Множество полей $\mathfrak{S} \coloneqq \{a1, b1, \dots, h8\}$, и типов $\mathcal{ST} \coloneqq \{Stop, Internal\}$ \\
-Множество фигур $\mathcal{K} \coloneqq \{ \dots \}$, и цветов $\mathcal{C} \coloneqq \{Black, White\}$ \\
-Доска $D \colon \mathcal{S} \to \mathcal{K} \times \mathcal{C} $ --- сопоставление полю доски фигуры определенного типа и цвета \\
-Траектория $Tr \in \left( \mathcal{S} \times \mathcal{ST} \right)^+ $ 
-\\
-Цепочка $Chain \coloneqq \langle color, traj, sa \rangle$,  где $color \in \mathcal{C}, traj \in Tr, sa \subset \mathbb{N} \times 2^{\mathtt{Chains}} $ 
+
+Множество полей $\mathcal{S} \coloneqq \{a1, b1, \dots, h8\}$ --- поля доски.\\
+Типы полей $\mathcal{ST} \coloneqq \{stop, internal\}$ --- поля остановки или промежуточные.\\
+Множество типов фигур $\mathcal{K} \coloneqq \{ K, Q, R, B, N, P \}$ \\
+Цвета соперников $\mathcal{C} \coloneqq \{black, white\}$ \\
+Доска $\Delta  \colon \mathcal{K} \times \mathcal{C} \to \mathcal{S} $ --- соответсвтие полю фигуры (типа и цвета). \\
+Траектория $\mathcal{T} \in \left( \mathcal{S} \times \mathcal{ST} \right)^+$ --- упорядоченный набор полей.\\
+Цепочка $Chain \coloneqq \langle color, traj, sa \rangle$,  где $color \in \mathcal{C}$ --  цвет цепочки, $traj \in \mathcal{T}$ -- основная траектория цепочки, $sa \subset \mathbb{N} \times 2^{\mathtt{Chains}}$ -- множество вспомогательных действий для проходимости поля траектории. \\
+В этом контексте понятие фигуры принимает вид всех цепочек одного цвета с общим началом траекторий.
 \end{frame}
 
+\begin{frame}{Оптимальная цепочка, minimax} %граф, содержащий всё.
+%Выражение оценки через сумму разменов. \\
+Так же имеется оценочная функция $\varphi \colon \mathtt{Chains} \to \mathbb{N}$:
+$$
+ \varphi \left( ch \right) = \sum_{\mathbb{N}} \sum_{sch \in sa\left(n, traj\right)} \sum_{\Omega}  value(p)
+$$
+$\Omega = \{p \mid \Delta \left( p, color \right) \in traj\}$
 
+
+\end{frame}
+
+\begin{frame}{Метод нахождения оптимальной цепочки} %граф, содержащий всё.
+
+\end{frame}
 
 \endinput
-
-
 \begin{frame}{Формализация: построение цепи}
 \begin{columns}
 \column{0.5\textwidth}
@@ -93,12 +107,11 @@
 \begin{itemize}
 \item квадраты - поля доски
 \item с каждым полем связаны цепи
-\item количество и качество цепей вляет на вес хода
+\item количество и качество цепей влияет на вес хода
 \end{itemize}
 \end{columns}
 Глобальная оптимизация заключается в уточнении оценки для фигур по числу цепей, что может повлиять на уже построенные цепи
 \end{frame}
-
 
 \begin{frame}{Технические шаги для решения задачи}
 Для решения содержательных задач необходимо реализовать ряд вспомогательных функций:
@@ -111,17 +124,4 @@
 \item определить оптимальную последовательность действий.
 \end{itemize}
 Все эти функции были реализованы.
-\end{frame}
-
-\begin{frame}{Формальные определения}
-\begin{description}
-\item[Траектория] последовательность полей движения фигуры на пустой доске
-\item[Горизонт] максимальная длина рассматриваемых траекторий
-\item[Цель] фигуры противника или поля
-\item[Подцепочка] действия, направленные на достижение цели
-\item[Цепочка] совокупность действий, направленных на достижение цели
-\item[Вилочность] совпадение частей цепочек
-\item[Оценка фигуры] числовая характеристика <<полезности>> фигуры
-\item[Время успевания] допустимое число ходов для защиты от атаки противника
-\end{description}
 \end{frame}
