@@ -1,4 +1,4 @@
-;;#!/usr/local/bin/sbcl --script
+#!/usr/local/bin/sbcl --script
 ;;--noinform --noinform --noprint --no-sysinit --no-userinit --disable-debugger
 
 ;; Start swank

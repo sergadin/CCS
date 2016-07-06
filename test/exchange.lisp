@@ -30,3 +30,14 @@
    "2k5/4q3/8/3p4/4Q3/5P2/3N4/2K5 w - - 0 1")
   (ensure-same (ccs::exchange-value the-board #@e4@ :black) -8.0
 	       :test 'almost= :report "Value of take move with optimal exchange"))
+
+
+(addtest (exchange)
+  simple-exchange
+  (ccs::load-from-fen-string
+   the-board
+   "P7/8/1N5p/8/8/8/6b1/8 w - - 0 1")
+  (ensure-same (ccs::exchange-value the-board #@a8@ :black) 0.0
+               :test #'almost= :report "Value of simple exchange")
+  (ensure-same (ccs::exchange-value the-board #@a8@ :white) 0.0
+               :test #'almost= :report "Value of simple inverse exchange"))

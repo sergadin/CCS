@@ -10,7 +10,7 @@
 (defun extract-paths (chain color)
   (check-type chain <chain>)
   (loop :for field :across (chain-trajectory chain)
-     :do (format t "~%~A!!!!!!~%" (tf-subchains field))
+     ;:do (format t "~%~A!!!!!!~%" (tf-subchains field))
      :nconc
      (loop :for sch :across (tf-subchains field)
         :nconc (extract-paths sch color))

@@ -3,13 +3,16 @@
 (defvar +default-chain-depath+ 3
   "Default value for maximum subchain level.")
 
+(defvar +support-chains-trashold+ 0.1
+  "Доля цепей из общего числа support chains, которые считаются
+  пригодными для дальнейшего анализа")
+
 (defparameter +infinite-piece-value+ 1000 "Used as an approximation of infinity.")
 
 
 (defun default-horizon (piece)
   (declare (ignore piece))
   3)
-
 
 (defclass <piece> (piece)
   ((position :initarg :position)
@@ -136,8 +139,7 @@ Forms will be evaluated with redefined methods, e.g. value-of, for the PIECE.
 (defclass <action> ()
   ((alternatives :type (or null <alternative-actions>)
                  :initform nil
-                 :accessor alt-actions)
-   (selected :type (or t null))))
+                 :accessor alt-actions)))
 
 (defclass <alternative-actions> ()
   ((actions :type list
@@ -292,7 +294,6 @@ last field on TRAJECTORY."
      :collect (field-square field)))
 
 
-
 (defmethod add-chain ((piece <piece>) (chain-or-subchain <chain>))
   ;; (log-message :trace "Adding the chain ~A of level ~D to the database" chain-or-subchain (chain-level chain-or-subchain))
   ;(let ((node
@@ -310,9 +311,9 @@ presumably yields more accurate estimations."
     (trajectory-time-limit trajectory position)))
 
 
-(defun find-escape-chains (field position parent &key (register t))
+(defun find-escape-chains (field position parent)
   "Field clearance."
-  (log-message :trace "Searching for escape chain from ~A. Level=~D"
+  #+(or)(log-message :trace "Searching for escape chain from ~A. Level=~D"
                (square-to-string (field-square field))
                (1+ (chain-level parent)))
   (let* ((piece-at-field (whos-at position (field-square field)))
@@ -327,7 +328,7 @@ presumably yields more accurate estimations."
     ;;--- TODO: find best candidate
     (mapcar #'(lambda (path)
                 (format t "~A ==> ~A~%" (square-to-string (first path)) (square-to-string (second path)))
-                (print (make-chain path position :parent parent :register register
+                (print (make-chain path position :parent parent
                                    :type :escape)))
             paths)))
 
@@ -363,80 +364,65 @@ presumably yields more accurate estimations."
                               (and field (stop-field-p field :strict t))))
             path))))
 
-
-;(defun path-along-parents-traject-p (
-
-
 (defun find-support-chains (field position parent &key time-limit (color (chain-color parent))
-                                                    (old-exchange-value 0)
-                                                    (register t))
+                                                    (old-exchange-value 0))
   "Find subchains making FIELD passable by the PARENT chain piece."
   (assert (not (null parent)))
-  (log-message :trace "Searching for support chains on ~A" (square-to-string (field-square field)))
-  (let ((support-chains nil))
-    ;; Attack the field by other pieces
-    (do-pieces (position (piece square) :color color) ;; ?.. what about pieces from parent's chain?
-      (let ((targets (pre-moves piece (field-square field) :attack-only t))
-            (horizon (or time-limit (default-horizon piece)))
-            (candidate-paths)
-            (new-exchange-value))
-        ;; Find all empty squares where PIECE can participate in the exchange on FIELD.
-        (dolist (target-square targets)
-          (setf new-exchange-value
-                (with-move (position square target-square)
-                  (exchange-value position (field-square field) (opposite-color color))))
-          (when (and (empty-square-p position target-square)
-                     (better-exchange-p new-exchange-value
-                                        old-exchange-value
-                                        color))
-            (loop :for path :in (find-paths (kind piece) square target-square horizon :color color)
-               :when (and (not (eq piece (chain-piece parent)))
-                          (piece-allowed-in-chain-p piece path parent))
-               :do
-               (push (cons (- old-exchange-value new-exchange-value) path) candidate-paths))))
+  ;;(log-message :trace "Searching for support chains on ~A" (square-to-string (field-square field)))
+  ;; Attack the field by other pieces
+  (do-pieces (position (piece square) :color color)
+    ;; ?.. TODO: what about pieces from parent's chain?
+    (let ((targets (pre-moves piece (field-square field) :attack-only t))
+          (horizon (or time-limit (default-horizon piece)))
+          (candidate-paths)
+          (new-exchange-value))
+      ;; Find all empty squares where PIECE can participate in the exchange on FIELD.
+      (dolist (target-square targets)
+        (setf new-exchange-value
+              (with-move (position square target-square)
+                (with-move (position (first (subchain0-path parent)) (field-square field))
+                  ;; (log-message :debug "~A" position)
+                  (exchange-value position (field-square field) (opposite-color color)))))
+         ; (log-message :debug "exchange value with ~A --- ~F -> ~F, ~F~%- - -- - - - - --  - -- - -- - - - - - - - - - -~%"
+          ;             (square-to-string target-square)
+           ;            old-exchange-value
+            ;           new-exchange-value
+             ;          (exchange-value position (field-square field) color))
+        (when (and (empty-square-p position target-square)
+                   (better-exchange-p new-exchange-value
+                                      old-exchange-value
+                                      color))
+          (loop :for path :in (find-paths (kind piece) square target-square horizon :color color)
+             :when (and (not (eq piece (chain-piece parent)))
+                        (piece-allowed-in-chain-p piece path parent))
+             :do
+             (push (cons (- old-exchange-value new-exchange-value) path)
+                   candidate-paths))))
 
-        (log-message :debug "Found ~D candidate paths for ~A~A support on ~A"
-                     (length candidate-paths) (piece-to-name (kind piece))
-                     (square-to-string square)
-                     (square-to-string (field-square field)))
+     #+(or) (log-message :debug "Found ~D candidate ~A paths for ~A~A support on ~A (~F -> ~F)"
+                   (length candidate-paths)
+                   color
+                   (piece-to-name (kind piece))
+                   (square-to-string square)
+                   (square-to-string (field-square field))
+                   old-exchange-value
+                   new-exchange-value)
+      ;;--- TODO: Make opponents moves impossible due to absolute or relative pin.
 
-        (when candidate-paths
+      (when candidate-paths
           (let ((ordered-candidates
                  (sort candidate-paths #'<
-                       :key #'(lambda (g-path) (estimate-chain-complexity (cdr g-path) position)))))
-            ;; Find the best chain
+                       :key #'(lambda (g-path)
+                                (estimate-chain-complexity (cdr g-path) position)))))
+
             (loop :for (gain . candidate-path) :in ordered-candidates
+               :and count :from 0 :to (ceiling (* +support-chains-trashold+
+                                                  (length ordered-candidates)))
                :for chain = (make-chain candidate-path
                                         position
                                         :parent parent
-                                        :register nil
                                         :type :support)
-               :when (or (not time-limit) (<= (time-limit chain) time-limit))
-               :do (push (list (time-limit chain) gain chain) support-chains)
-               (format t "~{~A~^-~}~%" (mapcar #'square-to-string candidate-path))
-               (return))))))
-    ;;--- TODO: Make opponents moves impossible due to absolute or relative pin.
-
-    ;; best-support-chain ?..
-    (log-message :debug "~A" support-chains)
-    (loop
-       :with best-bucket = (knapsack support-chains old-exchange-value time-limit
-                                     :gain-key #'second
-                                     :time-key #'first)
-       :with chains = (mapcar #'(lambda (t-g-chain) (elt t-g-chain 2))
-                              best-bucket)
-       :initially
-       (log-message :trace "Support found for ~A: ~{~A~^; ~}"
-                    (square-to-string (field-square field))
-                    (mapcar #'(lambda (chain)
-                                (format nil "~A (~A)"
-                                        (mapcar #'square-to-string (subchain0-path chain))
-                                        (estimate-chain-complexity (subchain0-path chain) position)))
-                            chains))
-
-       :for chain :in chains :when register :do (add-chain (chain-piece chain) chain)
-
-       :finally (return (make-bunch chains)))))
+               :collect chain))))))
 
 (defmethod print-object ((obj <chain>) out)
   (print-unreadable-object (obj out :type t)
@@ -445,83 +431,6 @@ presumably yields more accurate estimations."
             (chain-level obj)
             (chain-type obj)
             (mapcar #'square-to-string (subchain0-path obj)))))
-
-
-(defun make-chain (path position
-                   &key parent
-                     type
-                     (max-level +default-chain-depath+)
-                     (register t))
-  (check-type type chain-type "not a valid value for type argument")
-  (let* ((t-position (copy-position position))
-         (sq (first path))
-         (piece (whos-at t-position sq))
-         (chain-color (color piece))
-         (trajectory (make-trajectory path))
-         (level (if parent (+ 1 (chain-level parent)) 0))
-         (the-chain (make-instance '<chain>
-                                   :piece piece
-                                   :trajectory trajectory
-                                   :level level
-                                   :parent parent
-                                   :position position
-                                   :type type)))
-    (when (null parent)
-      (log-message :trace "Constructing chain for the path ~{~A ~}" (mapcar #'square-to-string path)))
-    (loop :with board = (copy-board t-position)
-       :for index :from 1 :below (array-dimension trajectory 0)
-       :for field = (aref trajectory index)
-       ;:and chain-piece-square = (field-square (aref trajectory 0)) :then (field-square field)
-       :for square = (field-square field)
-       :for time-limit = (time-limit the-chain index)
-       :for piece-at-field = (whos-at t-position (field-square field))
-       :while (< level max-level) ; do not create extremely nested subchains
-       :do
-
-       (when piece-at-field ; the field is occupied by a piece
-         (cond
-           ((eq (color piece-at-field) chain-color)
-            ;; remove our piece from the route
-            (let* ((escapes (find-escape-chains field board the-chain :register nil))
-                   (best-escape (first escapes)))
-              ;;add escape-chains to chains-list of piece-at-field
-              (loop :for esc :in escapes :do
-                 (format t "escape chain ~A ~% ~{~A~%~}" esc escapes)
-                 (add-chain piece-at-field esc)
-                 (vector-push-extend esc (tf-subchains field))
-                 (add-alternative best-escape esc))))
-
-           ((and (not (eq (color piece-at-field) chain-color))
-                 (eq (field-type field) :internal-field))
-            ;; opponent's piece in the middle: escape, protect or do nothing
-            (setf (field-type field) :extra-stop-field)
-            ;;(exchange-value t-position square chain-color)
-            nil)))
-
-       (when (stop-field-p field :strict nil)
-         (let ((ev (if (piece-of-color piece-at-field chain-color)
-                       0 ; pieces of the same color do not provide any gain to exchange value
-                       (piece-value piece-at-field :color chain-color)))) ; exchange-value
-           (with-move (t-position sq square)
-             (incf ev (exchange-value t-position square (opposite-color chain-color))))
-           (log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
-           (when (not (exchange-positive-p ev chain-color))
-             ;; Can't move to that square due to negative exchange value. Find support chains.
-             (let ((support-chains
-                    (find-support-chains field position the-chain :old-exchange-value ev :register register)))
-               (dolist (sc (bunch-chains support-chains))
-                 (when (not (eq (chain-piece sc) piece))
-                   (add-chain (chain-piece sc) sc)
-                   (vector-push-extend sc (tf-subchains field))))))
-           ;;(move-piece t-position chain-piece-square square)
-           )))
-    (when register (add-chain piece the-chain))
-    (format t "the-chain ~A~%" the-chain)
-    (format t "parent ~A~%" parent)
-    ;;(print-chains-database (slot-value piece 'chains-db))
-    ;;(cdb-iterate (slot-value piece 'chains-db) (subchain0-path the-chain) #'(lambda (c) (print c)))
-    the-chain))
-
 
 (defun print-piece-chains (position square-name)
   (let* ((square (string-to-square square-name))
@@ -548,7 +457,9 @@ presumably yields more accurate estimations."
 (defun print-position-in-hypertext (position fen)
   "Generate HTML pages required for chains browsing in the debugging frontwnd."
   #'(lambda (env)
-      (let ((params (quri:url-decode-params (getf env :query-string))))
+     ; (print "0000000000000000000000000000000000000000000000000000000")
+      (let* ((qs (getf env :query-string))
+             (params (quri:url-decode-params (if qs qs ""))))
         (cond
           (params ; PARAMS are set: this is an ajax request for additional data
            (let ((square-name (cdr (assoc "square" params :test #'string-equal)))
@@ -580,17 +491,101 @@ presumably yields more accurate estimations."
                "<div id=\"data\"></div>")))))))
 
 
+(defun make-chain (path position
+                        &key
+                          (parent nil)
+                          (type :main)
+                          (max-level +default-chain-depath+))
+  (check-type type chain-type "not a valid value for type argument")
+  (let* ((t-position (copy-position position))
+         (sq (first path))
+         (piece (whos-at t-position sq))
+         (chain-color (color piece))
+         (trajectory (make-trajectory path))
+         (level (if parent (+ 1 (chain-level parent)) 0))
+         (the-chain (make-instance '<chain>
+                                   :piece piece
+                                   :trajectory trajectory
+                                   :level level
+                                   :parent parent
+                                   :position position
+                                   :type type)))
+    (when (null parent)
+      (log-message :trace "Constructing chain for the path ~{~A ~}" (mapcar #'square-to-string path)))
+    (loop :with board = (copy-board t-position)
+       :for index :from 1 :below (array-dimension trajectory 0)
+       :for field = (aref trajectory index)
+       :for square = (field-square field)
+       :for piece-at-field = (whos-at t-position (field-square field))
+       :while (< level max-level) ; do not create extremely nested subchains
+       :do
+
+       ;; TODO связанные фигуры.
+
+       (when piece-at-field ; the field is occupied by a piece
+         (cond
+           ((eq (color piece-at-field) chain-color)
+            ;; remove our piece from the route
+            ;;add escape-chains to chains-list of piece-at-field
+            (loop :for esc :in (find-escape-chains field board the-chain)
+               :do (vector-push-extend esc (tf-subchains field))))
+
+           ((and (not (eq (color piece-at-field) chain-color))
+                 (eq (field-type field) :internal-field))
+            ;; opponent's piece in the middle: escape, protect or do nothing
+            (setf (field-type field) :extra-stop-field)
+            nil)))
+
+       (when (stop-field-p field :strict nil)
+         (let ((ev (if (piece-of-color piece-at-field chain-color)
+                       0 ; pieces of the same color do not provide any gain to exchange value
+                       (piece-value piece-at-field :color chain-color)))) ; exchange-value
+           (with-move (t-position sq square)
+             (incf ev (exchange-value t-position square (opposite-color chain-color))))
+           ;(log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
+           (when (not (exchange-positive-p ev chain-color))
+             ;; Can't move to that square due to negative exchange value. Find support chains.
+             (let ((support-chains
+                    (find-support-chains field position the-chain
+                                         :old-exchange-value ev)))
+               (dolist (sc support-chains)
+                 (when (not (eq (chain-piece sc) piece))
+                   (vector-push-extend sc (tf-subchains field))))))
+
+           (dolist (sc (find-support-chains field position the-chain
+                                            :color (opposite-color chain-color)
+                                            :old-exchange-value ev))
+             (when (not (eq (chain-piece sc) piece))
+               (vector-push-extend sc (tf-subchains field)))))))
+    the-chain))
+
+
 (defun test-chain ()
   (start-logging)
   (start-clack)
   (let ((*board* (create-board))
-        (fen "8/8/4b1p1/2Bp3p/5P1P/1pK1Pk2/8/8 b - - 0 1") ; kotov-botvinnik
-        (test-escape "8/8/N6p/P2b4/8/8/8/8 w - - 0 1") ;
-        (initial-sq #@a5@) ;#@e6@)  ; #@h5@)
-        (target-sq #@a8@) ;#@f1@) ; #@h1@)
-        (color :white))  ;:white))
-    ;(load-from-fen-string *board* fen)
-    (load-from-fen-string *board* test-escape)
+        (fen "8/8/N6p/P7/8/7b/8/8 w - - 0 1")
+        (initial-sq #@a5@)
+        (target-sq #@a8@)
+        (color :white))
+
+   #+(or)(setf fen "8/8/N6p/P7/8/7b/8/8 w - - 0 1"
+               initial-sq #@e6@
+               target-sq #@f1@
+               color :black)
+
+   #+(or)(setf fen "8/8/4b1p1/2Bp3p/5P1P/1pK1Pk2/8/8 b - - 0 1"
+               initial-sq #@e6@
+               target-sq #@f1@
+               color :white)
+
+
+   #+(or)(setf fen "8/8/4b1p1/2Bp3p/5P1P/1pK1Pk2/8/8 b - - 0 1"
+               initial-sq #@h5@
+               target-sq #@h1@
+               color :black)
+
+    (load-from-fen-string *board* fen)
     (log-message :debug "~A" (print-board *board* :stream nil))
     (let ((position (make-position *board*)))
       (do-pieces (*board* (p sq) :color color)
@@ -601,8 +596,6 @@ presumably yields more accurate estimations."
             (format t "*-*-*-*-*--********************************~%~A~%"
                     (identical-structure-p chain chain color))
             (print (mapcar #'square-to-string traject)))))
-     ; (dfe-add-handler "/position/" (print-position-in-hypertext position fen))))
-      (dfe-add-handler "/position/" (print-position-in-hypertext position test-escape))))
+      (dfe-add-handler "/position/" (print-position-in-hypertext position fen))))
   (format t "~%Open http://localhost:8020/ in a browser.~%~
-               =========================================")
-  )
+               ========================================="))

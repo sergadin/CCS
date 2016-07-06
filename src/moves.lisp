@@ -102,7 +102,7 @@
 
 ;;; Поиск возможных траекторий движения фигуры на пустой доске
 
-(defun find-paths (piece start end horizon &key (color :white))
+(fare-memoization:define-memo-function find-paths (piece start end horizon &key (color :white))
   "Return: list of paths; each path is a list of squares."
   (let ((wave `((,start)))
 	(result nil))
