@@ -10,7 +10,7 @@
 %построение цепочки
 \end{frame}
 
-\begin{frame}{Пример цепочки: дерево (repeat)}
+\begin{frame}{Пример цепочки: дерево (повтор)}
 \begin{tabular}{ll}
 \begin{tikzpicture}
 \begin{scope}[every node/.style={circle,thick,draw}]
@@ -51,7 +51,6 @@
 \end{frame}
 
 \begin{frame}{Формальная модель}
-
 Множество полей $\mathcal{S} \coloneqq \{a1, b1, \dots, h8\}$ --- поля доски.\\
 Типы полей $\mathcal{ST} \coloneqq \{stop, internal\}$ --- поля остановки или промежуточные.\\
 Множество типов фигур $\mathcal{K} \coloneqq \{ K, Q, R, B, N, P \}$ \\
@@ -62,19 +61,45 @@
 В этом контексте понятие фигуры принимает вид всех цепочек одного цвета с общим началом траекторий.
 \end{frame}
 
-\begin{frame}{Оптимальная цепочка, minimax} %граф, содержащий всё.
-%Выражение оценки через сумму разменов. \\
-Так же имеется оценочная функция $\varphi \colon \mathtt{Chains} \to \mathbb{N}$:
-$$
- \varphi \left( ch \right) = \sum_{\mathbb{N}} \sum_{sch \in sa\left(n, traj\right)} \sum_{\Omega}  value(p)
-$$
-$\Omega = \{p \mid \Delta \left( p, color \right) \in traj\}$
+%картинка фигуры =_=
+\begin{frame}{Пример фигуры}
+\begin{tabular}{ll}
+\begin{tikzpicture}
+\begin{scope}[every node/.style={circle,thick,draw}]
+    \node (A7) at (0,0) {a7};
+    \node (B5) at (2,0) {b5};
+    \node (C7) at (4,0) {c7};
+    \node (B6) at (4,-2) {b6};
+    \node (B8) at (4,2) {b8};
+    \node (A6) at (6,2) {a6};
+    \node (A8) at (6,-2) {a8};
+    \node (C6) at (2,2) {c6};
+    \node (C8) at (2,-2) {c8};
+\end{scope}
 
+\begin{scope}[%>={Stealth[black]},
+              every node/.style={fill=white,circle},
+              every edge/.style={draw=red,very thick}]
+    % подцепочка 0
+    \path [->] (A7) edge (B5);
+    \path [->] (B5) edge[red, draw=red, dashed] (C7);
+    \path [->] (C7) edge[red, draw=red, dashed] (A6);
+    \path [->] (C7) edge[red, draw=red, dashed] (A8);
+    % Защита
+    \path [->] (A7) edge[gray, draw=gray] (C6);
+    \path [->] (C6) edge[gray, draw=gray, dashed] (B8);
+    \path [->] (B8) edge[gray, draw=gray, dashed] (A6);
+    \path [->] (A7) edge[gray, draw=gray] (C8);
+    \path [->] (C8) edge[gray, draw=gray, dashed] (B6);
+    \path [->] (B6) edge[gray, draw=gray, dashed] (A8);
+    %\path [->] (B) edge[bend right=60] node {$1$} (E); 
+\end{scope}
+\end{tikzpicture}
+&
+{\scalebox{0.5}{\showDiagram{Pa5, Na7, bh3}{}}}
+\end{tabular}
 
-\end{frame}
-
-\begin{frame}{Метод нахождения оптимальной цепочки} %граф, содержащий всё.
-
+Пунктиром отмечены цепочки, <<поддерживающие>> размен.
 \end{frame}
 
 \endinput
