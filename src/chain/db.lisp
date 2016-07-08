@@ -53,22 +53,24 @@
   (let ((node
          (cl-containers:item-at (slot-value db 'search-index) path)))
     (when node
-      (mapc function (cl-containers:collect-elements (cdb-node-data node))))))
+      (mapc function (cl-containers:collect-items (cdb-node-data node))))))
 
 ;  (cl-containers:iterate-container (cl-containers:make-iterator
 
 
-(defun print-chains-database (db &key (stream t) (test #'(lambda (data) t)))
+(defun print-chains-database (piece &key (stream t) (test #'(lambda (data) (declare (ignore data)) t)))
   (format stream "~&--------------- chains-database -----------------~%")
   (loop
+     :with db = (piece-cdb piece)
      :with search-index = (slot-value db 'search-index)
      :for path :in (cl-containers:collect-keys search-index)
      :for node = (cl-containers:item-at search-index path)
      :for chains-at-node = (cl-containers:collect-items (cdb-node-data node) :filter test)
      :when (< 0 (count-if test chains-at-node))
-     :do (format stream "~A wight ~D~%            ~{~A~^~%            ~}~%"
+     :do (format stream "~A wight ~D ~%Parent-chains:~%            ~{~A~^~%            ~}~%"
                  (mapcar #'square-to-string path)
-                 (length chains-at-node)
+                 ;(length chains-at-node)
+                 (cdb-node-value piece path)
                  (mapcar #'(lambda (chain) (list (chain-type chain) (chain-parent chain))) chains-at-node)))
   (format stream "~&--------------- --------------- -----------------~%")
-  db)
+  (values))

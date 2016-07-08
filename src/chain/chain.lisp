@@ -14,11 +14,16 @@
   (declare (ignore piece))
   3)
 
-(defclass <piece> (piece)
+(defclass <target> ()
+  (); no slots
+  )
+
+(defclass <piece> (piece <target>)
   ((position :initarg :position)
    (square :type square
            :initarg :square)
    (chains-db :initform (make-chains-database)
+              :accessor piece-cdb
            :documentation
            "Tree-like database of all subchains this piece
            participates in. Indexed by subchain's path squares.")))
@@ -332,8 +337,6 @@ presumably yields more accurate estimations."
                                    :type :escape)))
             paths)))
 
-
-
 (defun knapsack (objects min-gain-limit max-time-limit
                  &key (gain-key #'identity)
                    (time-key #'(lambda (x) (declare (ignore x)) 1)))
@@ -408,7 +411,7 @@ presumably yields more accurate estimations."
                    old-exchange-value
                    new-exchange-value)
       ;;--- TODO: Make opponents moves impossible due to absolute or relative pin.
-
+      ;;--- TODO: прогнать атакующих, перекрыть траекторию атаки и проч.
       (when candidate-paths
           (let ((ordered-candidates
                  (sort candidate-paths #'<
@@ -424,9 +427,11 @@ presumably yields more accurate estimations."
                                         :type :support)
                :collect chain))))))
 
+
 (defmethod print-object ((obj <chain>) out)
   (print-unreadable-object (obj out :type t)
-    (format out "[~A L~D ~A] ~{~A~^ -> ~}"
+    (format out "[~A ~A L~D ~A] ~{~A~^ -> ~}"
+            (chain-color obj)
             (piece-to-name (kind (chain-piece obj)))
             (chain-level obj)
             (chain-type obj)
@@ -438,7 +443,7 @@ presumably yields more accurate estimations."
     (list
      "<pre>"
      (with-output-to-string (s)
-       (print-chains-database (slot-value piece 'chains-db)
+       (print-chains-database piece
                               :stream s
                               :test #'(lambda (c)
                                        ; (format t "~A of level ~D~%" c (chain-level c))
@@ -490,12 +495,41 @@ presumably yields more accurate estimations."
                "Please, move a mouse over a piece to load its chains."
                "<div id=\"data\"></div>")))))))
 
+(defun chain-feasibility (chain) ;; returns value from [0, 1]
+  ;(declare (ignore chain))
+  ;1.0d0)
+  (* (/ 2 Pi)
+     (atan  ;; TODO подобрать функцию
+      (estimate-chain-complexity (subchain0-path chain) (chain-position chain)))))
+
+
+(defun chain-target (chain) ;returns <target> obj for chain
+  (with-accessors ((traject chain-trajectory)
+                   (position chain-position))
+      chain
+    (let ((last-field (1- (array-dimension traject 0))))
+      (whos-at position (field-square (aref traject last-field))))))
+
+
+(defun chain-value (chain)
+  (let ((target (chain-target chain)))       ;; color: white
+    (if target (piece-value target) 8.0d0))) ;; TODO target-value
+
+(defun chain-danger (chain)
+  (* (chain-feasibility chain) (chain-value chain)))
+
+
+(defun cdb-node-value (piece path)
+  (let ((result 0.0d0))
+    (cdb-iterate (piece-cdb piece) path
+                 #'(lambda (chain) (incf result (chain-danger chain))))
+    result))
 
 (defun make-chain (path position
-                        &key
-                          (parent nil)
-                          (type :main)
-                          (max-level +default-chain-depath+))
+                   &key
+                     (parent nil)
+                     (type :main)
+                     (max-level +default-chain-depath+))
   (check-type type chain-type "not a valid value for type argument")
   (let* ((t-position (copy-position position))
          (sq (first path))
@@ -551,12 +585,13 @@ presumably yields more accurate estimations."
                (dolist (sc support-chains)
                  (when (not (eq (chain-piece sc) piece))
                    (vector-push-extend sc (tf-subchains field))))))
-
+           ;; Find opposite-chains
            (dolist (sc (find-support-chains field position the-chain
                                             :color (opposite-color chain-color)
                                             :old-exchange-value ev))
              (when (not (eq (chain-piece sc) piece))
                (vector-push-extend sc (tf-subchains field)))))))
+    (add-chain piece the-chain)
     the-chain))
 
 
@@ -592,9 +627,11 @@ presumably yields more accurate estimations."
         (when (= sq initial-sq)
           (print (first (last (find-paths (kind p) sq target-sq 4 :color color))))
           (let* ((traject (first (last (find-paths (kind p) sq target-sq 4 :color color))))
-                 (chain (make-chain traject position :type :main)))
+                 (traject2 (first (last (find-paths :bishop #@h3@ #@a6@ 2 :color :black))))
+                 (chain (make-chain traject position :type :main))
+                 (chain2 (make-chain traject2 position :type :main)))
             (format t "*-*-*-*-*--********************************~%~A~%"
-                    (identical-structure-p chain chain color))
+                    (identical-structure-p chain chain2 color))
             (print (mapcar #'square-to-string traject)))))
       (dfe-add-handler "/position/" (print-position-in-hypertext position fen))))
   (format t "~%Open http://localhost:8020/ in a browser.~%~
