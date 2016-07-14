@@ -35,15 +35,22 @@
                (:file "exchange")
                (:file "debug-frontend")
                (:module "chain"
+                        :serial t
                         :pathname "chain"
-                        :components ((:file "chain")
+                        :components ((:file "parameters")
+                                     (:file "classes")
+                                     (:file "trajectory")
+                                     (:file "chain")
+                                     (:file "position")
                                      (:file "db")
                                      (:file "graph")))
+               (:file "dbf-chains")
                (:file "candidates")
                (:file "play")
                (:file "xboard")
                (:file "main"))
   :depends-on ("cl-utilities" "cl-ppcre" "cl-log" "cl-containers" "dynamic-mixins"
+                              "fare-memoization"
                               "hunchentoot" "clack" "quri"))
 
 
