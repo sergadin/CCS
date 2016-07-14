@@ -267,7 +267,7 @@ presumably yields more accurate estimations."
   (start-logging)
   (start-clack)
   (let ((*board* (create-board))
-        (fen "8/8/N6p/P7/8/7b/8/8 w - - 0 1")
+        (fen "8/8/N6p/P7/8/7b/5b2/8 w - - 0 1")
         (initial-sq #@a5@)
         (target-sq #@a8@)
         (color :white))

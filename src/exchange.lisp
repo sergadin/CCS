@@ -14,39 +14,51 @@
         (%exchange-value-aux board sq color))))
 
 
-(defun optimal-cut (trace color &optional (current 0.0d0))
+(defun optimal-cut (trace color &optional (current (cons 0.0d0 nil)))
   "COLOR делают первый ход в последовательности TRACE, взвешенной с точки зрения белых."
   (if (null trace)
       current
-      (funcall (if (eql color :white) #'max #'min)
-               current
-               (optimal-cut (cdr trace) (opposite-color color) (car trace)))))
-
+      (let
+          ((candidate (optimal-cut (cdr trace) (opposite-color color) (car trace))))
+       ; (if (funcall (if (eql color :white) #'max #'min)
+        (if (funcall (if (eql color :white) #'> #'<=)
+                     (car current)
+                     (car candidate))
+            current
+            candidate))))
 
 
 (defun %exchange-value-aux (board sq color)
-  "Вычисляет значение размена на поле SQ, при условии, что первый ход делают COLOR. Оценка вычисляется с точки зрения белых."
+  "Вычисляет значение размена на поле SQ, при условии, что первый ход делают COLOR.
+ Оценка вычисляется с точки зрения белых."
   (let ((val 0.0d0)
         (t-board (copy-board board))
-        exchange-trace)
+        exchange-trace
+        piece-trace)
     (setf (turn t-board) color)
-    (do* ((who color
-               (opposite-color who))
-          (direct-attackers (attackers t-board sq :color who)
-                            (attackers t-board sq :color who))
-          (p (whos-at t-board sq)
-             (whos-at t-board sq))
-          (sign (if (eql who :white) +1 -1)
-                (* sign -1)))
-         ((or (null direct-attackers) (null p)))
-      (when (eql (color p) (opposite-color who))
-        (push (incf val (* sign (value-of p))) exchange-trace))
+    (loop :for who = color :then (opposite-color who)
+       :for direct-attackers = (attackers t-board sq :color who)
+       :and p = (whos-at t-board sq)
+       :and sign = (if (eql who :white) +1 -1)
+       :for attack-piece-sq = (first (sort direct-attackers #'<
+                               :key #'(lambda (x) (value-of (whos-at t-board x)))))
+      :while (not (or (null direct-attackers) (null p)))
+       :do (when (eql (color p) (opposite-color who))
+             (push (whos-at t-board attack-piece-sq) piece-trace)
+             (push (cons (incf val (* sign (value-of p)))
+                         (copy-seq piece-trace))
+                   exchange-trace))
 
-      (make-move t-board
-                 (create-move
-                  (first (sort direct-attackers #'< :key #'(lambda (x) (value-of (whos-at board x)))))
-                  sq)))
-    (values (optimal-cut (nreverse exchange-trace) color) t-board)))
+       (make-move t-board
+                  (create-move
+                   attack-piece-sq
+                   sq)))
+
+    ;(print piece-trace)
+    (destructuring-bind (ex-value . ex-pieces)
+        (optimal-cut (nreverse exchange-trace) color)
+      ;(print (list ex-value ex-pieces))
+      (values ex-value t-board ex-pieces))))
 
 (defun exchange-positive-p (value color &key strictly)
   (let ((cmp (if strictly #'< #'<=)))

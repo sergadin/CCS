@@ -41,6 +41,7 @@
                                      (:file "classes")
                                      (:file "trajectory")
                                      (:file "chain")
+                                     (:file "support")
                                      (:file "position")
                                      (:file "db")
                                      (:file "graph")))
