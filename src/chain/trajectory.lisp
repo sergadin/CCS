@@ -21,7 +21,9 @@
                                      sol
                                      (list (car move) (cdr move)))))
                            moves))
-         (len (- (reduce  #'+ segments :key #'length) (length segments) -1))
+         (len (if moves
+                  (- (reduce  #'+ segments :key #'length) (length segments) -1)
+                  0))
          (fields (make-array len :element-type '<trajectory-field>)))
     (loop :with i = 0
        :for tail :on (apply #'append segments)

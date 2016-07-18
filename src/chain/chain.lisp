@@ -193,6 +193,20 @@ presumably yields more accurate estimations."
                  #'(lambda (chain) (incf result (chain-danger chain))))
     result))
 
+(defun add-trajectory-as-subchain (parent field piece path subchain-type)
+  (let* ((position (chain-position parent))
+         (trajectory (make-trajectory path))
+         (level (if parent (+ 1 (chain-level parent)) 0))
+         (the-chain (make-instance '<chain>
+                                   :piece piece
+                                   :trajectory trajectory
+                                   :level level
+                                   :parent parent
+                                   :position position
+                                   :type subchain-type)))
+    (vector-push-extend the-chain (tf-subchains field))))
+
+
 (defun make-chain (path position
                    &key
                      (parent nil)
@@ -243,8 +257,14 @@ presumably yields more accurate estimations."
                        0 ; pieces of the same color do not provide any gain to exchange value
                        (piece-value piece-at-field :color chain-color)))) ; exchange-value
            (with-move (t-position sq square)
-             (incf ev (exchange-value t-position square (opposite-color chain-color))))
-           ;(log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
+             (multiple-value-bind (val board-after-exchange pieces)
+                 (exchange-value t-position square (opposite-color chain-color))
+               (incf ev val)
+               (loop :for (p . p-square) :in pieces
+                  :do (add-trajectory-as-subchain
+           ;            the-chain field p (list p-square square) :support))))
+                       the-chain (print field) p nil :support))))
+           ;;(log-message :trace "Exchange value on ~A ~F" (square-to-string square) ev)
            (when (not (exchange-positive-p ev chain-color))
              ;; Can't move to that square due to negative exchange value. Find support chains.
              (let ((support-chains

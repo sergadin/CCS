@@ -136,7 +136,7 @@ squares. (1 2 3) => ((1 . 2) (2 . 3))"
 
 ;;; Проверка допустимости хода
 
-(defun squares-on-line (start end)
+(defun squares-on-line (start end &key (include-frontier t))
   "Список полей между START и END (вертикаль, горизонталь или диагональ), включая FROM и TO."
   (let ((from (min start end))
 	(to (max start end))
@@ -151,7 +151,7 @@ squares. (1 2 3) => ((1 . 2) (2 . 3))"
 	    (t (return-from squares-on-line nil))))
     (do ((s from (+ s offset)))
 	((> s to))
-     (push s path))
+      (when (or include-frontier (and (/= s from) (/= s to))) (push s path)))
     (if (< start end)
         (nreverse path)
         path)))

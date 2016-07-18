@@ -59,11 +59,11 @@
   (with-move (position (first (subchain0-path parent)) (field-square field))
     (let* ((sq (field-square field))
            (op-color (opposite-color color))
-           (pieces-to-block (remove-if #'(lambda (p) (eql (color p) color))
+           (pieces-to-block (remove-if #'(lambda (p-sq) (eql (color (car p-sq)) color))
                                        (nth-value 2 (exchange-value position sq op-color)))))
-      (when pieces-to-block (print pieces-to-block))
-      ;(loop :for p-to-block :in pieces-to-block
-      ;   :do (print (squares-on-line (
+      ;(when pieces-to-block (print pieces-to-block))
+      (loop :for (p-to-block . p-square) :in pieces-to-block
+         :do (print (squares-on-line p-square sq :include-frontier nil)))
       nil)))
 
 (defun %find-pinning-chains (field position parent &key time-limit (color (chain-color parent))
