@@ -24,7 +24,7 @@
          (len (if moves
                   (- (reduce  #'+ segments :key #'length) (length segments) -1)
                   0))
-         (fields (make-array len :element-type '<trajectory-field>)))
+         (fields (make-array len :element-type '(or null <trajectory-field>) :initial-element nil)))
     (loop :with i = 0
        :for tail :on (apply #'append segments)
        :for sq = (car tail)

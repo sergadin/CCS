@@ -164,6 +164,7 @@ presumably yields more accurate estimations."
 
 
 (defun chain-feasibility (chain) ;; returns value from [0, 1]
+ "Return value from [0, 1], where 1 - totally feasible chain, 0 - unfeasible."
   ;(declare (ignore chain))
   ;1.0d0)
   (* (/ 2 Pi)
@@ -321,6 +322,7 @@ presumably yields more accurate estimations."
             (format t "*-*-*-*-*--********************************~%~A~%"
                     (identical-structure-p chain chain2 color))
             (print (mapcar #'square-to-string traject)))))
+      (format t "~A~%" (length (position-chains position)))
       (dfe-add-handler "/position/" (print-position-in-hypertext position fen))))
   (format t "~%Open http://localhost:8020/ in a browser.~%~
                ========================================="))

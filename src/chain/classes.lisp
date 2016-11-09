@@ -5,8 +5,10 @@
   (:documentation "Abstract base class representing chain's target."))
 
 (defclass <piece> (piece <target>)
-  ((position :initarg :position)
+  ((position :initarg :position
+             :accessor piece-position)
    (square :type square
+           :accessor piece-square
            :initarg :square)
    (chains-db :initform (make-chains-database)
               :accessor piece-cdb
@@ -38,7 +40,7 @@ Forms will be evaluated with redefined methods, e.g. value-of, for the PIECE.
 
 
 (defclass <position> (board)
-  ((chains)))
+  ((chains :accessor position-chains :initform nil)))
 
 
 (deftype field-type () '(member :stop-field :internal-field :extra-stop-feild))
