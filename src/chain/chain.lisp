@@ -165,11 +165,10 @@ presumably yields more accurate estimations."
 
 (defun chain-feasibility (chain) ;; returns value from [0, 1]
  "Return value from [0, 1], where 1 - totally feasible chain, 0 - unfeasible."
-  ;(declare (ignore chain))
-  ;1.0d0)
-  (* (/ 2 Pi)
-     (atan  ;; TODO подобрать функцию
-      (estimate-chain-complexity (subchain0-path chain) (chain-position chain)))))
+ (return-from chain-feasibility 1.0d0)
+ (* (/ 2 Pi)
+    (atan  ;; TODO подобрать функцию
+     (estimate-chain-complexity (subchain0-path chain) (chain-position chain)))))
 
 (defun chain-target (chain) ;returns <target> obj for chain
   (with-accessors ((traject chain-trajectory)
@@ -180,8 +179,11 @@ presumably yields more accurate estimations."
 
 
 (defun chain-value (chain)
-  (let ((target (chain-target chain)))       ;; color: white
-   (* -1 (if target (piece-value target) 8.0d0)))) ;; TODO target-value ;;updated 11/11/2016
+  (let ((target (chain-target chain)))       ;; returns value for white
+    (if target (* -1 (piece-value target))
+        (if (eql :white (chain-color chain))
+            8.0d0
+            -8.0d0)))) ;; TODO target-value ;;updated 11/11/2016
 
 (defun chain-danger (chain)
   (* (chain-feasibility chain) (chain-value chain)))
@@ -190,7 +192,9 @@ presumably yields more accurate estimations."
 (defun cdb-node-value (piece path)
   (let ((result 0.0d0))
     (cdb-iterate (piece-cdb piece) path
-                 #'(lambda (chain) (incf result (chain-danger chain))))
+                 #'(lambda (chain)
+                     (when (eql (chain-color chain) (color piece))
+                       (incf result (chain-danger chain)))))
     result))
 
 (defun add-trajectory-as-subchain (parent field piece path subchain-type)
@@ -327,7 +331,7 @@ presumably yields more accurate estimations."
                ========================================="))
 
 
-(defun test-position (&optional (input-fen  "6k1/5ppp/3r4/8/8/3B4/8/3R4 w - - 0 1"))
+(defun test-position (&optional (input-fen  "6k1/5ppp/3r4/8/8/3B4/8/3R2K1 w - - 0 1"))
   (start-logging)
   (start-clack)
   (let ((*board* (create-board))
