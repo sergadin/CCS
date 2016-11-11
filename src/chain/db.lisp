@@ -79,3 +79,14 @@
                          chains-at-node)))
   (format stream "~&--------------- --------------- -----------------~%")
   (values))
+
+(defun cdb-iterate-nodes (db function)
+  (loop
+     :with search-index = (slot-value db 'search-index)
+     :for path :in (cl-containers:collect-keys search-index)
+     :for node = (cl-containers:item-at search-index path)
+     :do (funcall function node))
+  (values))
+
+(defun cdb-get-keys (db)
+  (cl-containers:collect-keys (slot-value db 'search-index)))

@@ -12,4 +12,4 @@
 
 (defun default-horizon (piece)
   (declare (ignore piece))
-  3)
+  2)

@@ -171,7 +171,6 @@ presumably yields more accurate estimations."
      (atan  ;; TODO подобрать функцию
       (estimate-chain-complexity (subchain0-path chain) (chain-position chain)))))
 
-
 (defun chain-target (chain) ;returns <target> obj for chain
   (with-accessors ((traject chain-trajectory)
                    (position chain-position))
@@ -182,7 +181,7 @@ presumably yields more accurate estimations."
 
 (defun chain-value (chain)
   (let ((target (chain-target chain)))       ;; color: white
-    (if target (piece-value target) 8.0d0))) ;; TODO target-value
+   (* -1 (if target (piece-value target) 8.0d0)))) ;; TODO target-value ;;updated 11/11/2016
 
 (defun chain-danger (chain)
   (* (chain-feasibility chain) (chain-value chain)))
@@ -323,6 +322,19 @@ presumably yields more accurate estimations."
                     (identical-structure-p chain chain2 color))
             (print (mapcar #'square-to-string traject)))))
       (format t "~A~%" (length (position-chains position)))
+      (dfe-add-handler "/position/" (print-position-in-hypertext position fen))))
+  (format t "~%Open http://localhost:8020/ in a browser.~%~
+               ========================================="))
+
+
+(defun test-position (&optional (input-fen  "6k1/5ppp/3r4/8/8/3B4/8/3R4 w - - 0 1"))
+  (start-logging)
+  (start-clack)
+  (let ((*board* (create-board))
+        (fen input-fen))
+    (load-from-fen-string *board* fen)
+    (log-message :debug "~A" (print-board *board* :stream nil))
+    (let ((position (make-position *board*)))
       (dfe-add-handler "/position/" (print-position-in-hypertext position fen))))
   (format t "~%Open http://localhost:8020/ in a browser.~%~
                ========================================="))

@@ -17,3 +17,12 @@
   (let ((pos (ccs::make-position the-board)))
     (ensure-same (length (ccs::position-chains pos))  1
 	       :test #'= :report "one-chain-failed")))
+
+(addtest (chain-construction)
+  node-value-in-position
+  (ccs::load-from-fen-string
+   the-board
+   "6k1/5ppp/3r4/8/8/3B4/8/3R4 w - - 0 1")
+  (let ((pos (ccs::make-position the-board)))
+    (ensure-same (ccs::best-piece-node-value-in-position pos) -8.0
+                 :test #'= :report "Oooops!")))

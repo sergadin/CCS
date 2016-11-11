@@ -40,7 +40,7 @@
 (defun make-position (board)
   (let ((pos (position<-board board)))
     (with-accessors ((chains position-chains)) pos
-      (do-pieces (pos (piece sq))
+      (do-pieces (pos (piece sq)) ;:color :white)
         (setf chains (nconc chains (make-piece-chains piece)))))
     pos))
 
@@ -52,3 +52,20 @@
   ;  (format out "~s" (foo-name obj))))
   (format out "~%")
   (print-diagram obj :stream out))
+
+
+(defun best-piece-node-value-in-position (position)
+  (let (best-value best-piece)
+    (do-pieces (position (piece sq))
+      (let ((piece-value
+             (loop :for path :in (cdb-get-keys (piece-cdb piece))
+                :maximize (cdb-node-value piece path))))
+        (format t "Piece node value is ~A on ~A ~A~%" (kind piece)
+            (square-to-string (piece-square piece)) piece-value)
+        (when (or (null best-piece) (< best-value piece-value))
+          (setf best-value piece-value)
+          (setf best-piece piece))))
+    (format t "Best piece node value is ~A on ~A ~A~%" (kind best-piece)
+            (square-to-string (piece-square best-piece)) best-value)
+    (print-chains-database best-piece)
+    (values best-value best-piece)))
