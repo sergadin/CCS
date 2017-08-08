@@ -1,0 +1,359 @@
+\documentclass{beamer}
+
+\usepackage[english,russian]{babel}
+\usepackage[utf8]{inputenc}
+
+%\usefonttheme{professionalfonts}
+\usefonttheme{serif}
+%\usefonttheme{structureitalicserif}
+%\usepackage{mathptmx}
+%\usepackage{bm}
+\usetheme{Madrid}
+
+\usepackage{xskak}
+\usepackage{chessboard}
+
+\usepackage{wrapfig}
+\usepackage{multicol}
+
+\usepackage{tikz}
+\usetikzlibrary{graphs}
+\usetikzlibrary{positioning,shapes,shadows,arrows}
+\usetikzlibrary{arrows.meta}
+\usepackage{pgfplots}
+
+
+\usepackage[T2A]{fontenc}
+
+
+\begin{document}
+
+\title[]{Об одном подходе к математическому  представлению шахматной позиции}
+\author[Афанасьева А.Е.]{Афанасьева А.Е., Афонин С.А.}
+\institute[мехмат МГУ]{Московский государственный университет имени М.",В.",Ломоносова\\
+  \vspace{2cm}
+}
+\date[30.11.2016]{2016}
+
+\frame{\titlepage}
+
+
+% Вывести диаграмму с отмеченным ходом
+%
+\newcommand{\showDiagram}[2]{%
+      \chessboard[%
+      setpieces={#1},%
+      arrow=stealth,%
+      linewidth=.25ex,%
+      padding=1ex,%
+      color=red!55!white,%
+      pgfstyle=straightmove,%
+      shortenstart=1ex,%
+      showmover=false,%
+      markmoves={#2},%
+      padding=10ex,%
+      shortenend=1ex%
+      ]%
+}
+
+\newcommand{\showPosGraph}{
+Представление позиции~--- набор цепочек (т.е. цели и способы их достижения), на котором задана функция оценки.
+
+\smallskip
+\smallskip
+Рассмотрим граф представлений.\\
+
+\begin{wrapfigure}[6]{l}{0.56\linewidth} 
+  \vspace{-3ex}
+  \begin{tikzpicture}[scale=0.7]
+    \begin{scope}[every node/.style={fill=lightgray,circle,thick,draw,inner sep=0.75pt}
+      ]
+      \node[draw=black, double=white, circle, inner sep=1pt] (00) at (0,0) {% <- this 'right of' is inherited; how to avoid?
+        $\alpha_0$
+        % \usebox\mybox
+      };
+      \node (11) at (3,-3) {$\alpha_2$
+        % \usebox\mybox
+      };
+      \node (21) at (6,0) {$\alpha_4$};
+    \end{scope}
+    \begin{scope}[every node/.style={fill=white,circle,thick,draw, inner sep=0.75pt}]
+      \node (01) at (3,0) {$\alpha_1$};
+      \node (10) at (0,-3) {$\alpha_3$};
+      \node (22) at (9,0) {$\alpha_5$};
+      \node (23) at (6,-3) {$\alpha_6$};
+      \node (24) at (9,-3) {$\alpha_7$};
+    \end{scope}
+
+    \begin{scope}[>={Stealth},
+      % every node/.style={fill=white,circle},
+      every edge/.style={draw=blue,very thick}]
+      % подцепочка 0
+      \path [->] (00) edge node[inner sep=2pt, midway, below] {$\mathop{{\text{\scriptsize чёрных}}}\limits^{\text{\scriptsize действия}}_{\alpha_1<\alpha_0}$} (01);
+      \path [->] (11) edge (10);
+      \path [->] (21) edge (22);
+      \path [->] (21) edge (23);
+      \path [->] (21) edge (24);
+      \path [->] (01) edge[dashed] node[inner sep=2pt, midway, below] {$\mathop{\text{\scriptsize белых}}\limits^{\text{\scriptsize действия}}_{\alpha_4 > \alpha_1}$} (21);
+      \path [->] (01) edge[dashed] (11);
+      \path [->] (10) edge[dashed] (00);
+    \end{scope}
+  \end{tikzpicture}
+%\caption{Схема графа представлений.}
+\end{wrapfigure}
+
+Дуги отражают изменения поднаборов цепочек определенного цвета, улучшающие оценку с точки зрения соответствующего игрока.
+}
+
+
+\begin{frame}{Поиск оптимальной стратегии}
+Методы поиска оптимальной стратегии в заданной позиции (выбор хода) включают:
+\begin{itemize}
+\item полный перебор путей в дереве игры;
+\item перебор с отсечением (альфа-бета процедура);
+\item анализ нейронными сетями;
+\item эвристические методы.
+\end{itemize}
+Далее будет описан метод представления позиций на основе \emph{цепочек}.
+\end{frame}
+
+% Автоматическая генерация содержания
+\frame{\frametitle{Содержание}\tableofcontents}
+
+\section{Понятие цепочки}
+
+\begin{frame}{Метод М.М. Ботвинника: понятие цепочки}
+
+{  
+\begin{center}
+\begin{tabular}{l}
+  {\hspace{-0.3cm}\scalebox{0.6}{\showDiagram{Ka1, Pa5, Na7, kh8, bh3}{}}}
+  \hfill%
+  \begin{tikzpicture}[scale=0.56]
+    \begin{scope}[every node/.style={fill=white,circle,thick,draw,inner sep=0.5pt,font={\fontsize{7.20}{7.44}\selectfont}}]
+      \node [label=above:{\setboardfontsize{0.4cm}{\textcolor{black}{\WhitePawnOnWhite}}}] (A5) at (0,0) {a5};
+      \node (A6) at (2,0) {a6};
+      \node (A7) at (4,0) {a7};
+      \node (A8) at (6,0) {a8};
+      \node [label=left:{\setboardfontsize{0.4cm}{\textcolor{black}{\WhiteKnightOnWhite}}}] (NA7) at (1,2.5) {a7};
+      \node (B5) at (4,2.5) {b5};
+      \node (C6) at (3,1.5) {c6};
+      \node (C7) at (7,2.5) {c7};
+      \node (C8) at (1.5,1.3) {c8};
+      \node [label={45:{\setboardfontsize{0.4cm}{\textcolor{black}{\BlackBishopOnWhite}}}}] (H3) at (3,-3) {h3};
+      \node (G2) at (6,-3) {g2};
+      \node (F1) at (0.5,-1.7) {f1};
+      \node (BC8) at (1.8,-1.7) {c8};
+    \end{scope}
+
+    \begin{scope}[>={stealth},
+      % every node/.style={fill=white,circle},
+      every edge/.style={draw=red,very thick}]
+      % подцепочка 0
+      \path [->] (A5) edge node [text width=0.5cm,midway,above] {} (A6); %  {B} 
+      \path [->] (A6) edge (A7);
+      \path [->] (A7) edge (A8);
+      % Защита
+      \path [->] (H3) edge[draw=black] (G2);
+      \path [->] (G2) edge[gray, draw=gray, dashed] (A8);
+      \path [->] (H3) edge[draw=black] (F1);
+      \path [->] (F1) edge[gray, draw=gray, dashed] (A6);
+      \path [->] (H3) edge[draw=black] (BC8);
+      \path [->] (BC8) edge[gray, draw=gray, dashed] (A6);
+
+      % Отступление 
+      \path [->] (NA7) edge[draw=black] (B5);
+      \path [->] (NA7) edge[draw=black] (C6);
+      \path [->] (NA7) edge[draw=black] (C8);
+      \path [->] (B5) edge[draw=black] (C7);
+      \path [->] (B5) edge[gray, draw=gray, dashed] node [rotate=-90,above,yshift=0.15cm] {\textcolor{black}{$\stackrel{\text{\tiny подцепочка}}{\text{\tiny к полю}}$}} (A7);
+      \path [->] (C7) edge[gray, draw=gray, dashed, bend left] (G2);
+      \path [->] (C7) edge[gray, draw=gray, dotted] node [rotate=67,above,yshift=0.1cm] {\textcolor{black}{\tiny контроль}} (A8);
+      % \path [->] (B) edge[bend right=60] node {$1$} (E); 
+      \path [->] (C6) edge[draw=black, opacity=0.3, dotted, bend right] node [rotate=0,above,yshift=0.1cm] {\textcolor{black}{\tiny блокада g2-a8}} (G2);
+    \end{scope}
+  \end{tikzpicture}
+\end{tabular}
+\end{center}
+}
+
+Цепочка порождается последовательностью ходов (траекторией движения фигуры), а так же вспомогательными действиями, связанными с некоторыми
+полями основной траектории. Каждая цепочка описывает возможное развитие игры в
+случае выбора игроком данной цели.
+\end{frame}
+
+
+
+\section{Формализация}
+
+\begin{frame}{Траектории и цепочки}
+
+\emph{Траекторией} фигуры назовем упорядоченный набор полей ${T} \in \left( {S} \times {ST} \right)^+$, где
+${S} = \{a1, b1, \dots, h8\}$ множество \emph{полей} доски, а
+${ST} = \{stop, internal\}$~-- тип поля.
+
+\bigskip
+\emph{Цепочкой} $ch\in{}\mathtt{Chains}$ назовем набор $\langle color, traj, sch \rangle$,  где $color \in {C}=\{black, white\}$~--  цвет цепочки, $traj \in {T}$~-- траектория подцепочки-0, $sch \colon \mathbb{N}_0 \to 2^{\mathtt{Chains}}$~-- множество вспомогательных действий (подцепочек), связанных с полями траектории.  
+Цепочка называется \emph{полной}, если она содержит все возможные
+подцепочки (до заданного горизонта и глубины подцепочек), и
+\emph{корректной}, если траектории каждой её фигуры попарно согласованы.
+
+\bigskip
+\emph{Представление позиции} есть множество корректных цепочек. %:  $Position \subseteq 2^{\mathtt{Chains}}$.
+\end{frame}
+
+\begin{frame}{Оценочные функции}
+\begin{itemize}
+\item \emph{стоимость фигуры} (в представлении позиции $p$) $\nu_{p}:{S} \to \mathbb{R}$;
+
+\item \emph{стоимость цепочки} $\varphi \colon \mathtt{Chains} \to \mathbb{R}$, например,
+$$
+ \varphi \left( ch \right) = \sum\limits_{k=0}^{|traj(ch)|} \left(  \sum_{ p \in ep\left(k\right)} \nu\left(p\right) + \sum_{c \in sch\left(k\right)} \varphi\left(c\right) \right),
+$$
+$ep\left(k\right)$~-- набор фигур, участвующих в размене на поле $k$; 
+\item \textit{время успевания} цепочки $ch$ до $k$-ого поля основной траектории $\tau \colon  \mathtt{Chains}\times\mathbb{N}_0 \to \mathbb{N}_{0} $;
+%% Нужно исключить размены, так как они не прибавляют времени
+% \alert{
+% $$
+% \tau_{ch}\left( k\right) = |T| + \sum_{n<len}\sum_{c \in sch\left(n\right)} \tau\left(c\right) - ... \text{, где } T = \{ t \in traj\left[1\colon k\right]|_{stop} \}
+% $$}
+
+\item оценка \textit{локальной реализуемости} цепочки $\rho \colon \mathtt{Chains} \to \left[0,1\right]$. Цепочки с большим числом вариантов защиты или временем реализации менее <<опасны>>;
+
+\item \textbf{оценка \textit{позиции}} $\Phi \colon \mathtt{Positions} \to \mathbb{R}$
+зависит от числа цепочек, максимального значения оценочной функции $\varphi$ по цепочкам позиции и суммы значений этой функции.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Граф представлений позиции}
+\textit{Графом представлений} назовем ориентированный раскрашенный граф, узлами которого являются представления позиции. Если две вершины
+$\Gamma_{1}$ и $\Gamma_{2}$, совпадающие по множеству белых цепочек
+таковы, что $\Phi(\Gamma_1) > \Phi(\Gamma_2)$, то проводится
+ориентированная дуга из $\Gamma_1$ в $\Gamma_2$, а
+концевая вершина окрашивается в белый цвет. Это означает, что черные могут
+улучшить оценку позиции $\Gamma_1$ в свою пользу, изменив некоторые
+свои действия, но решение о сохранении полученного результата
+принимают белые. Аналогично для черного цвета.
+Будем использовать символ $\prec_{c}$ для обозначения сравнения, учитывающего цвет.
+
+{\bf Утверждение.}{\it~Если длина траекторий подцепочек-0 ограничена сверху, то граф представлений конечен.}
+\end{frame}
+
+\begin{frame}{Пример графа представлений}
+%Как неподвижная точка...
+
+%\center
+
+\showPosGraph
+
+
+\vspace{1cm}
+% \smallskip
+% \smallskip
+% Неподвижная точка --- оптимальное представление позиции ~---
+% это набор цепочек, изменение которого невыгодно ни
+% одной из сторон.
+
+\end{frame}
+
+
+\begin{frame}{Минимакс-достижимая вершина}
+
+Пусть $\alpha\in\mathbb{R}$. Вершину $\Gamma'$ цвета $c'$ назовем \emph{$\alpha$-достижимой из вершины} $\Gamma$ цвета $c$, если:
+\begin{wrapfigure}[6]{r}{0.35\linewidth} 
+  \vspace{-4.8ex}
+  \begin{tikzpicture}[scale=0.5]
+   \begin{axis}[legend style={at={(0,0)},anchor=west,at={(axis description cs:1.05,0.45)}},
+     every axis legend/.code={\let\addlegendentry\relax}   %ignore legend locally
+     ]
+        \addplot+ coordinates {
+            (1,1.5)
+            (2,3.3)
+            (3,0.9)
+            (4,2.9)
+            (5,2.5)
+        };
+        \addlegendentry{Line 1}
+        \addplot+ coordinates {
+            (1,2.3)
+            (5,2.3)
+        };
+        \addlegendentry{Line 2}
+        \addplot[only marks, mark=o, mark size=6] coordinates {
+            (1,1.5)
+            (3,0.9)
+            (5,2.5)
+        };
+        \addlegendentry{Important}
+    \end{axis}
+  \end{tikzpicture}
+\end{wrapfigure}  
+%
+\vspace{-0.3cm}
+\begin{itemize}
+\item $\Phi(\Gamma') \succcurlyeq_{c} \Phi(\Gamma)$;
+\item найдется путь $\pi=\langle \Gamma_0,\Gamma_1,\ldots,\Gamma_k\rangle$ ($k\geqslant 0)$ такой, что $\Gamma_0=\Gamma$ и $\Gamma_k=\Gamma'$;
+\item для любой лежащей на пути $\pi$ вершины $\Gamma_i$  ($i \geqslant 0$) цвета $c_i$ выполняется условие 
+$\Phi(\Gamma_i) \preccurlyeq_{c_i} \alpha$ (белые вершины ниже $\alpha$, черные~-- выше).
+\end{itemize}
+
+Вершину $\Gamma'$ назовем \emph{минимакс-достижимой из $\Gamma$}, если она $\Phi(\Gamma')$-достижима из $\Gamma$.
+\end{frame}
+
+\begin{frame}{Минимакс оптимальная вершина}
+\begin{wrapfigure}[6]{r}{0.4\linewidth} 
+  \vspace{-7ex}
+  \begin{tikzpicture}[scale=0.55]
+   \begin{axis}[legend style={at={(0,0)},anchor=west,at={(axis description cs:1.05,0.45)}},
+     every axis legend/.code={\let\addlegendentry\relax}   %ignore legend locally
+     ]
+        \addplot+ coordinates {
+            (1,1.5)
+            (2,3.3)
+            (3,0.9)
+            (4,2.9)
+            (5,2.5)
+        };
+        \addlegendentry{Line 1}
+        \addplot+ coordinates {
+            (1,2.3)
+            (5,2.3)
+        };
+        \addlegendentry{Line 2}
+        \addplot[only marks, mark=o, mark size=6] coordinates {
+            (1,1.5)
+            (3,0.9)
+            (5,2.5)
+        };
+        \addlegendentry{Important}
+    \end{axis}
+  \end{tikzpicture}
+\end{wrapfigure}  
+
+Назовем вершину $\widehat{\Gamma}$ \textit{минимакс-оптимальной для вершины $\Gamma$}, если она минимакс-достижима из $\Gamma$ и любая другая минимакс-достижимая из $\Gamma$ вершина $\Gamma'$ цвета $c'$, для которой $\Phi(\Gamma') \succ_{c'} \Phi(\widehat{\Gamma})$, либо не является $\Phi(\widehat{\Gamma})$-достижимой из $\Gamma$, либо имеет минимакс-достижимую вершину $\Gamma''$, для которой $\Phi(\Gamma'') \prec_{c'} \Phi(\widehat{\Gamma})$.
+
+
+\bigskip
+{\bf Утверждение.}{\it~Для любой вершины любого конечного графа представлений существует минимакс-оптимальная вершина.}
+% %Перебором можно найти
+
+\end{frame}
+
+
+\begin{frame}\frametitle{Оптимальное представление позиции}
+\bigskip
+\emph{Оптимальным представлением позиции} назовем такую вершину $\Gamma^*$ графа представлений, что $\widehat{\Gamma^*}=\Gamma^*$ и  для любой вершины $\Gamma$ выполнено $\Phi(\widehat{\Gamma}) \preccurlyeq_c \Phi(\Gamma^*)$, где $c$~-- цвет $\widehat{\Gamma}$.
+
+\bigskip
+{\bf Теорема.}{\it~Существует алгоритм нахождения оптимального представления позиции.}
+\end{frame}
+
+\begin{frame}
+\center{
+Спасибо за внимание!
+}
+\end{frame}
+
+
+\end{document}
