@@ -8,3 +8,9 @@ def init():
     image_prev = None
     image_with_original_colors = None
     frame_number = None
+
+    colors = {
+        'green':      (120, 255, 120), # vert_lines
+        'king blue':  (255, 120, 120),
+        'grey':       (120, 120, 120)
+    }

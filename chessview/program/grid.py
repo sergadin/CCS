@@ -1,10 +1,10 @@
 import numpy as np
 import math
 import cv2
-from geometry import distance, nextLine, selectLines, linesIntersection
+from geometry import distance, next_line, select_lines, lines_intersection, visible_intersection_p
 import gvars as gvars
-from painting import paintArrayPoints, drawLine, display_hint
-from matricies import makeTransformationMatricies, makeInverseMatrix
+from painting import paint_array_points, draw_line, display_hint
+from matricies import make_transformation_matricies, make_inverse_matrix
     
     
 def numpyize(value):
@@ -60,7 +60,7 @@ def bestPatternAlignment(grid, pattern):
     space. Pattern is a rectangualar array.
 
     Return value:
-    two lists of length of the patten that map grid lines to pattern's lines.
+    two lists (each has length of the pattern) that map grid lines to pattern's lines.
     """
     gridHorSize, gridVertSize, _ = grid.shape
     patternHorSize, patternVertSize, _ = pattern.shape
@@ -131,7 +131,7 @@ def bestPatternAlignment(grid, pattern):
                 best_choice = (hor_m, vert_m)
     ## print "------"
     ## print grid
-    ## print "quality=", best_quality, "choice=", best_choice
+    #print "quality=", best_quality, "choice=", best_choice
     #if len([x for x in vert_best_indices if x is not None]) > 7:
         #print hor_matchings, vert_matchings, "==>", best_quality
         #print hor_best_indices, vert_best_indices, "==>", best_quality
@@ -218,7 +218,7 @@ def matchGridPattern(grid, pattern=None):
                 M_to_ideal = cv2.getPerspectiveTransform(numpyize(square), numpyize(ideal_square))
                 M_to_frame = cv2.getPerspectiveTransform(numpyize(ideal_square), numpyize(square))
                 #board = cv2.perspectiveTransform(numpyize(pattern), M_to_frame)
-                #paintArrayPoints(board)
+                #paint_array_points(board)
                 idealized_green_points = cv2.perspectiveTransform(numpyize(grid), M_to_ideal)
                 quality, (hor_alignment, vert_alignment) = bestPatternAlignment(idealized_green_points, pattern)
                 
@@ -242,7 +242,7 @@ def matchGridPattern(grid, pattern=None):
     print "Good enough by ", best_conf
     board = cv2.perspectiveTransform(numpyize(pattern), best_matr)
     paintSquarePoint(best_square)
-    paintArrayPoints(board, color=[200,100,90], radius=8)            
+    paint_array_points(board, color=[200, 100, 90], radius=8)
     return best_quality, best_alignment, best_matr_to_ideal
     
 ###############################################################################################################################
@@ -250,12 +250,12 @@ def matchGridPattern(grid, pattern=None):
 def makeGrid(vert, hor, dimention=2):
     "Intersection points in frame-coordinates."
     for line in vert + hor:
-        drawLine(gvars.image_to_draw_121, line, color=(120, 120, 220), width=2)
+        draw_line(gvars.image_to_draw_121, line, color=(10, 10, 120), width=2)
 
     grid = np.zeros((len(hor), len(vert), dimention), dtype="float32")
     for (i, h) in enumerate(hor):
         for (j, v) in enumerate(vert):
-            x, y = linesIntersection(v, h)
+            x, y = lines_intersection(v, h)
             grid[i][j] = np.array([x, y]).astype("float32")
     return grid   
     
@@ -264,18 +264,18 @@ def makeGrid(vert, hor, dimention=2):
 ###############################################################################################################################
 
 def mappings_to_borders(vert, hor, vert_m, hor_m):
-    def minMaxLines(values, returnIndices=None):
+    def min_max_lines(values, returnIndices=None):
         arr = [x for x in values if x is not None]
         if returnIndices:                     ### is min index equal index of min elem? Yes!
             arr = [i for i, x in enumerate(values) if x is not None]   
         return min(arr), max(arr) 
 
-    left, right = minMaxLines(vert_m)
-    top, bottom = minMaxLines(hor_m)
+    left, right = min_max_lines(vert_m)
+    top, bottom = min_max_lines(hor_m)
     
     border_lines = {"left": vert[left], "right": vert[right], "bottom": hor[bottom], "top": hor[top]}
-    left_i, right_i = minMaxLines(vert_m, returnIndices=True)
-    top_i, bottom_i = minMaxLines(hor_m, returnIndices=True)
+    left_i, right_i = min_max_lines(vert_m, returnIndices=True)
+    top_i, bottom_i = min_max_lines(hor_m, returnIndices=True)
 
     return border_lines, (left_i, right_i, top_i, bottom_i)
     
@@ -297,19 +297,22 @@ def hintedBorder(frame, vert, hor, hint):
     if quality is None or hor_m is None or vert_m is None:
         return None, None, None
 
-    if quality > 200:
-        print "hintedBorder, quality > 200" #, idealized_corners
+    #if quality > 200:
+    #    print "hintedBorder, quality > 200" #, idealized_corners
         
-    display_hint(frame, vert, hor, hint, vert_m=vert_m, hor_m=hor_m)
+    #display_hint(frame, vert, hor, hint, vert_m=vert_m, hor_m=hor_m)
 
     border_lines, (left_i, right_i, top_i, bottom_i) = mappings_to_borders(vert, hor, vert_m, hor_m)
     points = [[left_i, top_i], [right_i, top_i], [right_i, bottom_i], [left_i, bottom_i]]
     points = [[x/8., y/8.] for [x, y] in points]
     
-    to_current_frame, from_current_frame = makeTransformationMatricies(border_lines, points=points)
+    to_current_frame, from_current_frame = make_transformation_matricies(border_lines, points=points)
 
-    return border_lines, from_current_frame, quality
+    corners_by_new_matrix = cv2.perspectiveTransform(hv_corners, from_current_frame)
+    quality_by_new_matrix, _ = bestPatternAlignment(corners_by_new_matrix, ideal_board)
 
+    #print quality, " to ", quality_by_new_matrix
+    return border_lines, from_current_frame, quality_by_new_matrix
 
 
 ###############################################################################################################################
@@ -351,8 +354,8 @@ def outerCorners(frame, vert, hor):
     # estimate x-step for vertical lines
     bottom_line = result["bottom"]
     for v in vert:
-        v.x_value = linesIntersection(bottom_line, v)[0]
-    x_points = [linesIntersection(bottom_line, v)[0] for v in vert if v.x_value >= result["left"].x_value and v.x_value <= result["right"].x_value]
+        v.x_value = lines_intersection(bottom_line, v)[0]
+    x_points = [lines_intersection(bottom_line, v)[0] for v in vert if v.x_value >= result["left"].x_value and v.x_value <= result["right"].x_value]
     distances = [x_points[k] - x_points[k-1] for k in range(1, len(x_points))]
     x_step = np.median(np.array(distances))
 
@@ -361,7 +364,7 @@ def outerCorners(frame, vert, hor):
         exact_border_found = False
         current_border = result[key]
         while not exact_border_found:
-            next_candidate = nextLine(vert, current_border, direction)
+            next_candidate = next_line(vert, current_border, direction)
             if next_candidate is None:
                 print "No next candidate"
                 break
@@ -378,16 +381,15 @@ def outerCorners(frame, vert, hor):
     #-------------------------------------------------------------------------------------
     tempResult = result.copy()
   
-    selected_vert = selectLines(vert, tempResult["left"], tempResult["right"])
-    selected_hor = selectLines(hor, tempResult["top"], tempResult["bottom"])
+    selected_vert = select_lines(vert, tempResult["left"], tempResult["right"])
+    selected_hor = select_lines(hor, tempResult["top"], tempResult["bottom"])
     grid = makeGrid(selected_vert, selected_hor)
     
     quality, (hor_m, vert_m), M_to_ideal = matchGridPattern(grid)
     #best, _ = mappings_to_borders(selected_vert, selected_hor, vert_m, hor_m)
 
     print "bestQuality = ", quality 
-    
-    
+
     return None, M_to_ideal, quality
     
 ###############################################################################################################################

@@ -26,10 +26,10 @@ class Line:
     def as_points(self):
         return [self.x1, self.y1, self.x2, self.y2]
 
-def linesIntersection(line1, line2): 
-    return intersectionPoint(line1.as_points(), line2.as_points())
+def lines_intersection(line1, line2):
+    return intersection_point(line1.as_points(), line2.as_points())
     
-def intersectionPoint(line1, line2):
+def intersection_point(line1, line2):
     """Returns the intersection point of given lines.
     The intersection point returned as two values x,y.
     Each line is a list [ax, ay, bx, by]"""
@@ -54,7 +54,7 @@ def intersectionPoint(line1, line2):
 def visible_intersection_p(line1, line2, frame):
     try:
         frame_rows, frame_cols, _ = frame.shape
-        x, y = linesIntersection(line1, line2)
+        x, y = lines_intersection(line1, line2)
         if x >= 0 and x <= frame_cols and y >= 0 and y <= frame_rows:
             return True
     except IntersectionError:
@@ -69,13 +69,13 @@ def distance(a, b):
 
 ###############################################################################################################################
 
-def getOrderingAttribute(line):
+def get_ordering_attribute(line):
     return 'x_value' if hasattr(line, 'x_value') else 'y_value'
 
-def nextLine(lines, current, direction=+1, distance=1):
+def next_line(lines, current, direction=+1, distance=1):
     if distance == 0: return current
     epsilon = 0.01
-    attr = getOrderingAttribute(current)
+    attr = get_ordering_attribute(current)
     lines_order = lines if direction > 0 else reversed(lines)
     match = False
     for l in lines_order:
@@ -87,8 +87,8 @@ def nextLine(lines, current, direction=+1, distance=1):
             match = True
     return None
 
-def selectLines(lines, first, last):
-    name = getOrderingAttribute(first)
+def select_lines(lines, first, last):
+    name = get_ordering_attribute(first)
     if getattr(first, name) >= getattr(last, name):
         first, last = last, first
     result = []

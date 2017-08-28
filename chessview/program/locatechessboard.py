@@ -3,7 +3,7 @@ import cv2
 import scipy
 import scipy.spatial, scipy.spatial.distance
 import scipy.cluster.hierarchy
-from geometry import Line, distance, intersectionPoint, visible_intersection_p, linesIntersection
+from geometry import Line, distance, intersection_point, visible_intersection_p, lines_intersection
 from painting import debug_painting
 from grid import outerCorners, hintedBorder
 
@@ -21,19 +21,19 @@ def auto_canny(image, sigma=0.33):
     # return the edged image
     return edged
    
-def findRepresentativeLines(image, lines, polarLines, threshold=15):
+def find_representative_lines(image, lines, polarLines, threshold=15):
     if not lines or len(lines)==0:
         return []
     if len(lines) == 1:
         return polarLines
     height, width, point = image.shape
     X = lines
-    def linesProximity(line1, line2):
-        pt1 = intersectionPoint(line1, [0,0,width,height])
-        pt2 = intersectionPoint(line2, [0,0,width,height])
+    def lines_proximity(line1, line2):
+        pt1 = intersection_point(line1, [0, 0, width, height])
+        pt2 = intersection_point(line2, [0, 0, width, height])
         return distance(pt1, pt2)
     
-    def findClusters(data, distanceFunction, threshold):
+    def find_clusters(data, distanceFunction, threshold):
         """Returns two values:
         map from custer index to a list of data indeces,
         array that maps every data item to its cluster index."""
@@ -46,7 +46,7 @@ def findRepresentativeLines(image, lines, polarLines, threshold=15):
             clusters[clustering[k]].append(k)
         return clusters, clustering    
         
-    clusters, mapping = findClusters(X, linesProximity, threshold)
+    clusters, mapping = find_clusters(X, lines_proximity, threshold)
     representatives = []
     weighted_averages = [] # rho, theta, number of lines in the cluster, line object
     for clusterId, clusterMembers in clusters.items():
@@ -70,7 +70,7 @@ def findRepresentativeLines(image, lines, polarLines, threshold=15):
         representatives.append( (repr_rho/repr_count, repr_theta/repr_count) )
     return representatives
 
-def findSquares(image, votes_per_line=125, raw_lines=False):
+def find_squares(image, votes_per_line=125, raw_lines=False):
     thetas = []
     imageHL = image.copy()
     imageTemp = image.copy()
@@ -84,7 +84,7 @@ def findSquares(image, votes_per_line=125, raw_lines=False):
     rad = np.pi/180
     lines = cv2.HoughLines(auto, 1, np.pi/180, votes_per_line)
 
-    def polarToEuclidian(rho, theta):
+    def polar_to_euclidian(rho, theta):
         a = np.cos(theta)
         b = np.sin(theta)
         x0 = a*rho
@@ -106,16 +106,16 @@ def findSquares(image, votes_per_line=125, raw_lines=False):
         else:
             verticalPolar.append((rho, theta))
 
-    debug_painting(gvars.image_to_draw_121, [Line(rp) for rp in verticalPolar], [Line(rp) for rp in horizontalPolar])
+    #debug_painting(gvars.image_to_draw_121, [Line(rp) for rp in verticalPolar], [Line(rp) for rp in horizontalPolar])
     
     if not raw_lines:
-        verticalPolar = findRepresentativeLines(image, [polarToEuclidian(rho, theta) for rho, theta in verticalPolar], verticalPolar, threshold=30)
-        horizontalPolar = findRepresentativeLines(image, [polarToEuclidian(rho, theta) for rho, theta in horizontalPolar], horizontalPolar, threshold=30)
+        verticalPolar = find_representative_lines(image, [polar_to_euclidian(rho, theta) for rho, theta in verticalPolar], verticalPolar, threshold=30)
+        horizontalPolar = find_representative_lines(image, [polar_to_euclidian(rho, theta) for rho, theta in horizontalPolar], horizontalPolar, threshold=30)
 
     vertical = [Line(rp) for rp in verticalPolar]
     horizontal = [Line(rp) for rp in horizontalPolar]
 
-    debug_painting(gvars.image_to_draw_121, vertical, horizontal)
+    #debug_painting(gvars.image_to_draw_121, vertical, horizontal)
         
     return vertical, horizontal 
    
@@ -135,16 +135,16 @@ def locateChessboard(frame, hint=None):
     mid_vertical_line = makeMidVerticalLine(frame)
     mid_horizontal_line = makeMidHorizontalLine(frame)
     
-    vert, hor = findSquares(frame)
+    vert, hor = find_squares(frame)
     
     if len(vert) < 2 or len(hor) < 2:
         return None, None, None
         
     # sort lines in increasing order
     for line in hor:
-        line.y_value = linesIntersection(line, mid_vertical_line)[1]
+        line.y_value = lines_intersection(line, mid_vertical_line)[1]
     for line in vert:
-        line.x_value = linesIntersection(line, mid_horizontal_line)[0]
+        line.x_value = lines_intersection(line, mid_horizontal_line)[0]
     hor.sort(key=lambda line: line.y_value)
     vert.sort(key=lambda line: line.x_value)
 

@@ -2,22 +2,22 @@ import numpy as np
 import cv2
 import ast
 import re
-from geometry import linesIntersection
+from geometry import lines_intersection
 
-def makeTransformationMatricies(border_lines, points=None):
+def make_transformation_matricies(border_lines, points=None):
     unitSquare = np.array(points or [[[0, 0],[1, 0],[1, 1],[0, 1]]]).astype("float32")
     border_corners = np.zeros((4, 2), dtype = "float32")
 
-    border_corners[0] = np.array(linesIntersection(border_lines["left"], border_lines["top"]))
-    border_corners[1] = np.array(linesIntersection(border_lines["right"], border_lines["top"]))
-    border_corners[2] = np.array(linesIntersection(border_lines["right"], border_lines["bottom"]))
-    border_corners[3] = np.array(linesIntersection(border_lines["left"], border_lines["bottom"]))
+    border_corners[0] = np.array(lines_intersection(border_lines["left"], border_lines["top"]))
+    border_corners[1] = np.array(lines_intersection(border_lines["right"], border_lines["top"]))
+    border_corners[2] = np.array(lines_intersection(border_lines["right"], border_lines["bottom"]))
+    border_corners[3] = np.array(lines_intersection(border_lines["left"], border_lines["bottom"]))
 
     M = cv2.getPerspectiveTransform(unitSquare, border_corners)
     Minverse = cv2.getPerspectiveTransform(border_corners, unitSquare)  
     return M, Minverse
     
-def makeInverseMatrix(matrix):
+def make_inverse_matrix(matrix):
     if matrix is None: return None
     unit_square = np.array([[[0, 0],[100, 0],[100, 100],[0, 100]]]).astype("float32")
     unit_square_image = cv2.perspectiveTransform(unit_square, matrix)

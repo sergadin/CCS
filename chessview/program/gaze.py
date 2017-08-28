@@ -3,8 +3,8 @@ import numpy as np
 import cv2
 
 import gvars as gvars
-from matricies import makeInverseMatrix
-from painting import paintIdealBoard
+from matricies import make_inverse_matrix
+from painting import paint_ideal_board
 
 
 class GazeStream:
@@ -48,7 +48,7 @@ class GazeStream:
     def close(self):
         self.f.close()
 
-def findGazeSquare(normalizedGazePoint, frameSize, frame_to_ideal_matrix):
+def find_gaze_square(normalizedGazePoint, frameSize, frame_to_ideal_matrix):
     gx, gy = normalizedGazePoint
     width, height = frameSize
 
@@ -56,7 +56,7 @@ def findGazeSquare(normalizedGazePoint, frameSize, frame_to_ideal_matrix):
     ideal_gaze_point = cv2.perspectiveTransform(np.array([[[x, y]]]).astype("float32"), frame_to_ideal_matrix)[0][0]
     print ideal_gaze_point
     
-    paintIdealBoard(makeInverseMatrix(frame_to_ideal_matrix), color=[10,100,230]) #yellow_points
+    paint_ideal_board(make_inverse_matrix(frame_to_ideal_matrix), color=[10, 100, 230]) #yellow_points
     cv2.circle(gvars.image_to_draw_121, (int(x), int(y)), radius=8, color=[10,100,230], thickness=2)
     
     igx = ideal_gaze_point[0]

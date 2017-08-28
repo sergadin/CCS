@@ -7,9 +7,9 @@ import re
 from operator import itemgetter
 
 from program.frameswindow import FramesWindow
-from program.gaze import findGazeSquare, GazeStream
-from program.matricies import load_matrices, makeInverseMatrix
-from program.painting import paintIdealBoard, rescale
+from program.gaze import find_gaze_square, GazeStream
+from program.matricies import load_matrices, make_inverse_matrix
+from program.painting import paint_ideal_board, rescale, cv2_imshow_rescaled
 from program.grid import generateIdealBoard
 import program.gvars as gvars
 
@@ -22,6 +22,7 @@ gStream = GazeStream("livedata (out).json")
 first_frame = 10
 last_frame = 1001 # None for infinity
 scale = 1.0
+scale_to_draw = 0.7
 step = 1
 use_log = False
 
@@ -44,13 +45,18 @@ def on_frame_ready(frame_data):
     if gaze_point is None:
         print "on_frame_ready", frame_number, str(ms), "---"
     else:    
-        gaze_at_square = findGazeSquare(gaze_point, (frame_cols, frame_rows), to_ideal_matrix)
+        gaze_at_square = find_gaze_square(gaze_point, (frame_cols, frame_rows), to_ideal_matrix)
         print "on_frame_ready", frame_number, str(ms), gaze_at_square
         (gx, gy) = gaze_point
         x, y = gx*frame_cols, gy*frame_rows
-        cv2.circle(gvars.image_to_draw_121, (int(x), int(y)), radius=5, color=[100,10,230], thickness=2)
+
+
+        cv2.circle(frame, (int(x), int(y)), radius=5, color=[100,10,230], thickness=2)
+        paint_ideal_board(make_inverse_matrix(to_ideal_matrix), frame)
+        cv2_imshow_rescaled('on_frame_ready %s' % frame_number, frame, scale=scale_to_draw)
         #cv2.imshow('on_frame_ready %s' % frame_number, image_to_draw_121)
         #cv2.waitKey(0)
+
         if view_log and gaze_at_square is not None:
             view_log.write(str(frame_number) + ' ' + str(ms) + ' ' + str(gaze_at_square) + '\n')
         
@@ -84,16 +90,14 @@ while True:
         gvars.image_with_original_colors = frame.copy()
 
         if use_log and matrices.get(proc_num, None) is not None:
-            paintIdealBoard(makeInverseMatrix(matrices[proc_num]), image_to_draw_matrices)
-            scaled_frame = rescale(image_to_draw_matrices, 1.0)
-            cv2.imshow('matrices Total on %s' % gvars.frame_number, scaled_frame)
-            cv2.waitKey(0)
+            paint_ideal_board(make_inverse_matrix(matrices[proc_num]), image_to_draw_matrices)
+            #cv2_imshow_rescaled('matrices Total on %s' % gvars.frame_number, image_to_draw_matrices, scale=scale_to_draw)
             #continue
                         
         frames_window.add_frame(frame)
 
-        cv2.imshow('image_to_draw after all on %s' % gvars.frame_number, gvars.image_to_draw_121)
-        cv2.waitKey(0) 
+        #cv2_imshow_rescaled('image_to_draw after all on %s' % gvars.frame_number, gvars.image_to_draw_121, scale=scale_to_draw)
+
         #image_prev = gvars.image_to_draw_121.copy()
         
     else:
