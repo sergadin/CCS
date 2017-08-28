@@ -16,6 +16,9 @@ import program.gvars as gvars
 gvars.init()
 
 #cap = cv2.VideoCapture("Rec040.mp4")
+
+videowriter = None
+
 cap = cv2.VideoCapture("out.mp4")
 gStream = GazeStream("livedata (out).json")
 
@@ -52,8 +55,12 @@ def on_frame_ready(frame_data):
 
 
         cv2.circle(frame, (int(x), int(y)), radius=5, color=[100,10,230], thickness=2)
-        paint_ideal_board(make_inverse_matrix(to_ideal_matrix), frame)
+        paint_ideal_board(make_inverse_matrix(to_ideal_matrix), frame, color=(0, 255, 0))
+        if videowriter is not None:
+            videowriter.write(frame)
+
         cv2_imshow_rescaled('on_frame_ready %s' % frame_number, frame, scale=scale_to_draw)
+
         #cv2.imshow('on_frame_ready %s' % frame_number, image_to_draw_121)
         #cv2.waitKey(0)
 
@@ -83,6 +90,13 @@ while True:
             frame = rescale(frame, scale)
 
         frame_rows, frame_cols, _ = frame.shape
+
+        if videowriter is None:
+            #videowriter = cv2.VideoWriter(filename='results.mp4', fourcc=cv2.CV_FOURCC('X','V','I','D'), fps=25, frameSize=(frame_rows, frame_cols))
+            fourcc = cv2.cv.CV_FOURCC(*'XVID')
+            videowriter = cv2.VideoWriter('output.avi', fourcc, 25.0, (frame_rows, frame_cols))
+
+
         #M = cv2.getRotationMatrix2D((frame_cols/2,frame_rows/2),15,1)
         #frame = cv2.warpAffine(frame,M,(frame_cols,frame_rows))
         gvars.image_to_draw_121 = frame.copy()
