@@ -36,7 +36,7 @@ proc_num = 0
 called_on_frame_ready = 0
 
 def on_frame_ready(frame_data):
-    global called_on_frame_ready
+    global called_on_frame_ready, videowriter
     frame = frame_data.image
     frame_number = frame_data.number
     frame_rows, frame_cols, _ = frame.shape
@@ -69,7 +69,9 @@ def on_frame_ready(frame_data):
         
 frames_window = FramesWindow(5, on_frame_ready)
 
-matrices = load_matrices("botvinnik.output.log.3")
+matrices = None
+if use_log:
+    matrices = load_matrices("botvinnik.output.log.3")
 
 view_log = open('view_log_1.log', 'w')
 
@@ -94,8 +96,7 @@ while True:
         if videowriter is None:
             #videowriter = cv2.VideoWriter(filename='results.mp4', fourcc=cv2.CV_FOURCC('X','V','I','D'), fps=25, frameSize=(frame_rows, frame_cols))
             fourcc = cv2.cv.CV_FOURCC(*'XVID')
-            videowriter = cv2.VideoWriter('output.avi', fourcc, 25.0, (frame_rows, frame_cols))
-
+            videowriter = cv2.VideoWriter('output.avi', fourcc, 25.0, (frame_cols, frame_rows))
 
         #M = cv2.getRotationMatrix2D((frame_cols/2,frame_rows/2),15,1)
         #frame = cv2.warpAffine(frame,M,(frame_cols,frame_rows))
