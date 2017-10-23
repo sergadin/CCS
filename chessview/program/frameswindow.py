@@ -95,6 +95,3 @@ class FramesWindow:
             self.callback(self.queue[self.head])
             self.queue[self.head] = None
             self.head = (self.head + 1) % self.size
-
-
-        

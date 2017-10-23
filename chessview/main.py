@@ -14,7 +14,6 @@ from program.grid import generateIdealBoard
 import program.gvars as gvars
 
 gvars.init()
-
 #cap = cv2.VideoCapture("Rec040.mp4")
 
 videowriter = None
@@ -22,7 +21,7 @@ videowriter = None
 cap = cv2.VideoCapture("out.mp4")
 gStream = GazeStream("livedata (out).json")
 
-first_frame = 10
+first_frame = 1
 last_frame = 1001 # None for infinity
 scale = 1.0
 scale_to_draw = 0.7
@@ -31,6 +30,10 @@ use_log = False
 
 dict_frame_to_ms = {}
 proc_num = 0
+
+#to_test
+print ([(key, len(values)) for key, values in gStream.getDataFromPeriod(4000, 16000).items()])
+exit(1)
 
 #func to callback from FramesWindow
 called_on_frame_ready = 0
@@ -55,13 +58,21 @@ def on_frame_ready(frame_data):
 
 
         cv2.circle(frame, (int(x), int(y)), radius=5, color=[100,10,230], thickness=2)
-        paint_ideal_board(make_inverse_matrix(to_ideal_matrix), frame, color=(0, 255, 0))
+        matrix_to_frame = make_inverse_matrix(to_ideal_matrix)
+        #paint_ideal_board(matrix_to_frame, frame, color=(0, 255, 0))
+
+        unit_square = np.array([[[0, 0], [1, 0], [1, 1], [0, 1]]]).astype("float32")
+        borders = cv2.perspectiveTransform(unit_square, matrix_to_frame)
+        big_square = np.array([[[100, 100], [500, 100], [500, 500], [100, 500]]]).astype("float32")
+        paint_ideal_matrix = cv2.getPerspectiveTransform(borders, big_square)
+        warped = cv2.warpPerspective(frame, paint_ideal_matrix, (frame_cols, frame_rows))
+
         if videowriter is not None:
-            videowriter.write(frame)
+            videowriter.write(warped)
 
-        cv2_imshow_rescaled('on_frame_ready %s' % frame_number, frame, scale=scale_to_draw)
+        #cv2_imshow_rescaled('on_frame_ready %s' % frame_number, frame, scale=scale_to_draw)
 
-        #cv2.imshow('on_frame_ready %s' % frame_number, image_to_draw_121)
+        #cv2.imshow('on_frame_ready %s' % frame_number, frame)
         #cv2.waitKey(0)
 
         if view_log and gaze_at_square is not None:
@@ -96,7 +107,7 @@ while True:
         if videowriter is None:
             #videowriter = cv2.VideoWriter(filename='results.mp4', fourcc=cv2.CV_FOURCC('X','V','I','D'), fps=25, frameSize=(frame_rows, frame_cols))
             fourcc = cv2.cv.CV_FOURCC(*'XVID')
-            videowriter = cv2.VideoWriter('output.avi', fourcc, 25.0, (frame_cols, frame_rows))
+            videowriter = cv2.VideoWriter('outputpo.avi', fourcc, 25.0, (frame_cols, frame_rows))
 
         #M = cv2.getRotationMatrix2D((frame_cols/2,frame_rows/2),15,1)
         #frame = cv2.warpAffine(frame,M,(frame_cols,frame_rows))
@@ -112,7 +123,6 @@ while True:
         frames_window.add_frame(frame)
 
         #cv2_imshow_rescaled('image_to_draw after all on %s' % gvars.frame_number, gvars.image_to_draw_121, scale=scale_to_draw)
-
         #image_prev = gvars.image_to_draw_121.copy()
         
     else:

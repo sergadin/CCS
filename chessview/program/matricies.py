@@ -5,7 +5,7 @@ import re
 from geometry import lines_intersection
 
 def make_transformation_matricies(border_lines, points=None):
-    unitSquare = np.array(points or [[[0, 0],[1, 0],[1, 1],[0, 1]]]).astype("float32")
+    unit_square = np.array(points or [[[0, 0],[1, 0],[1, 1],[0, 1]]]).astype("float32")
     border_corners = np.zeros((4, 2), dtype = "float32")
 
     border_corners[0] = np.array(lines_intersection(border_lines["left"], border_lines["top"]))
@@ -13,8 +13,9 @@ def make_transformation_matricies(border_lines, points=None):
     border_corners[2] = np.array(lines_intersection(border_lines["right"], border_lines["bottom"]))
     border_corners[3] = np.array(lines_intersection(border_lines["left"], border_lines["bottom"]))
 
-    M = cv2.getPerspectiveTransform(unitSquare, border_corners)
-    Minverse = cv2.getPerspectiveTransform(border_corners, unitSquare)  
+    M = cv2.getPerspectiveTransform(unit_square, border_corners)
+    Minverse = cv2.getPerspectiveTransform(border_corners, unit_square)
+
     return M, Minverse
     
 def make_inverse_matrix(matrix):

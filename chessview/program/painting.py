@@ -97,5 +97,6 @@ def paint_ideal_board(matrix_to_frame, image=None, color=[150, 100, 100]):
     ideal_board = generateIdealBoard()
     real_board = cv2.perspectiveTransform(np.array(ideal_board), matrix_to_frame)
     paint_array_points(real_board, color=color, image=image)
+    return real_board
 
 
